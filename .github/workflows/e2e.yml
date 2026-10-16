@@ -11,7 +11,7 @@ jobs:
     name: E2E on ${{ github.event.deployment.environment }}
     if: >-
       github.event.deployment_status.state == 'success' &&
-      contains(github.event.deployment.environment, 'hotel')
+      contains(github.event.deployment_status.environment_url, 'hotel-mirador')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
