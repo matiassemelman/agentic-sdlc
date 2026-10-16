@@ -160,7 +160,7 @@ p { text-wrap: pretty; }
 /* ---------- motion: content stays visible without script or with reduced motion ---------- */
 @media (prefers-reduced-motion: no-preference) {
   .js [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity 700ms var(--ease-out), transform 900ms var(--ease-out); transition-delay: calc(var(--i, 0) * 80ms); }
-  .js [data-reveal].is-in { opacity: 1; transform: none; }
+  .js [data-reveal][data-revealed] { opacity: 1; transform: none; }
   .window__img { animation: drift 18s ease-in-out infinite alternate; }
   @keyframes drift { from { transform: scale(1.06); } to { transform: scale(1); } }
   .hero__line, .hero__nav { animation: rise 900ms var(--ease-out) both 150ms; }
