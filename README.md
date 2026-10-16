@@ -4,7 +4,7 @@ A small-scale software factory, after Uber ([Efficient Software Factory](https:/
 
 A visitor orders a change to a demo hotel site, approves its spec, accepts it in an ephemeral environment and sends the pull request to the maintainer, who merges it to production. Agents write the spec and the code; gates and people decide what moves forward.
 
-**Status:** v0 in progress, stage 1 of 9 (hotel site, fast gates, ephemeral environment). Design: [`docs/design.md`](docs/design.md). Vocabulary: [`GLOSSARY.md`](GLOSSARY.md).
+**Status:** v0 in progress, stage 1 of 9 (hotel site, fast gates, ephemeral environment). Live: [hotel-mirador-rho.vercel.app](https://hotel-mirador-rho.vercel.app). Design: [`docs/design.md`](docs/design.md). Vocabulary: [`GLOSSARY.md`](GLOSSARY.md).
 
 ## The hotel
 
