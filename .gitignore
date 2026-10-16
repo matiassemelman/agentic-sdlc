@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+.vercel/
+.env*
+!.env.example
+coverage/
+playwright-report/
+test-results/
+.taste-skill/
+*.tsbuildinfo
+next-env.d.ts

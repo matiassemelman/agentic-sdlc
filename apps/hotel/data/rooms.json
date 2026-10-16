@@ -1,0 +1,42 @@
+[
+  {
+    "id": "la-seu",
+    "name": "La Seu",
+    "view": "la-seu",
+    "pricePerNight": 210,
+    "maxGuests": 2,
+    "sizeM2": 24,
+    "beds": "Double bed",
+    "description": "Looks east across the bay to the cathedral, gold at sunset. A balcony over the street."
+  },
+  {
+    "id": "bellver",
+    "name": "Bellver",
+    "view": "bellver",
+    "pricePerNight": 185,
+    "maxGuests": 3,
+    "sizeM2": 28,
+    "beds": "Double and single bed",
+    "description": "Looks up the hill to Bellver Castle, round among the pines. The quiet side of the house."
+  },
+  {
+    "id": "badia",
+    "name": "Badia",
+    "view": "badia",
+    "pricePerNight": 260,
+    "maxGuests": 4,
+    "sizeM2": 36,
+    "beds": "Two double beds",
+    "description": "Looks over the bay to the western shore, where the sun goes down. Our largest room, on the corner."
+  },
+  {
+    "id": "tramuntana",
+    "name": "Tramuntana",
+    "view": "tramuntana",
+    "pricePerNight": 120,
+    "maxGuests": 1,
+    "sizeM2": 14,
+    "beds": "Single bed",
+    "description": "On the roof, looking north to the Tramuntana range on clear mornings. Small and bright."
+  }
+]

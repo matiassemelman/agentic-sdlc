@@ -1,0 +1,34 @@
+# Fast gates: the cheapest checks run first, on every pull request and on main.
+name: Fast gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast-gates:
+    name: Lint, types, unit, build, design
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Design house rules (taste skill lint)
+        run: node .claude/skills/design-taste-frontend/scripts/lint.mjs apps/hotel/app apps/hotel/components
