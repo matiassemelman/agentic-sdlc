@@ -1,0 +1,76 @@
+# Spec approval: the product owner approves or rejects the spec by adding a label to the run's issue.
+# The approval counts only for the spec exactly as the spec station wrote it (checked by its hash).
+name: Spec approval
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: approval-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  decide:
+    name: Record the product owner's decision
+    if: >-
+      (github.event.label.name == 'spec:approved' || github.event.label.name == 'spec:rejected') &&
+      contains(github.event.issue.labels.*.name, 'station:spec-approval')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ISSUE: ${{ github.event.issue.number }}
+      DECISION: ${{ github.event.label.name }}
+      ACTOR: ${{ github.actor }}
+    steps:
+      # v0: the product owner acts through the repository owner's account. The panel (v1) adds its own identity here.
+      - name: Only the product owner decides
+        if: github.actor != github.repository_owner
+        run: |
+          gh issue edit "$ISSUE" --remove-label "$DECISION"
+          gh issue comment "$ISSUE" --body "@$ACTOR, only the product owner of this run can approve or reject its spec."
+          exit 1
+
+      - name: Reject
+        if: env.DECISION == 'spec:rejected'
+        run: |
+          gh issue comment "$ISSUE" --body "Spec rejected by @$ACTOR. The run ends here; nothing was built."
+          gh issue edit "$ISSUE" --remove-label station:spec-approval --add-label outcome:rejected
+          gh issue close "$ISSUE" --reason "not planned"
+
+      - if: env.DECISION == 'spec:approved'
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - if: env.DECISION == 'spec:approved'
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Check the spec was not changed since the spec station wrote it
+        if: env.DECISION == 'spec:approved'
+        id: spec
+        run: |
+          gh api "repos/$GH_REPO/issues/$ISSUE/comments?per_page=100" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- factory:spec v1 ")))] | last | .body // ""' \
+            > spec-comment.md
+          if ! result=$(node packages/stations/src/verify-spec.ts spec-comment.md); then
+            gh issue edit "$ISSUE" --remove-label spec:approved
+            gh issue comment "$ISSUE" --body "This spec cannot be approved: $result."
+            exit 1
+          fi
+          echo "sha256=$result" >> "$GITHUB_OUTPUT"
+
+      - name: Approve
+        if: env.DECISION == 'spec:approved'
+        env:
+          SHA: ${{ steps.spec.outputs.sha256 }}
+        run: |
+          gh issue comment "$ISSUE" --body "$(printf 'Spec approved by @%s (sha256 `%s`). Next station: build.\n<!-- factory:approved sha256=%s -->' "$ACTOR" "${SHA:0:12}" "$SHA")"
+          gh issue edit "$ISSUE" --remove-label station:spec-approval --add-label station:build

@@ -13,7 +13,9 @@ Instructions for any coding agent (Claude Code, Cursor, Copilot, Gemini) working
   - `lib/`: pure logic, each module with a `*.test.ts` beside it.
   - `components/`, `app/`: the page.
   - `e2e/`: Playwright tests.
-- `.claude/skills/`: skills shared by local and cloud agents.
+- `packages/stations`: the factory's single-call stations (spec now; eval, review and tester later), run by GitHub Actions with Node 24. Agents do not change it during a run.
+- `tickets/`: the fixed tickets a run can start from. Agents do not change them.
+- `.claude/skills/`: skills shared by local and cloud agents (`write-spec` is the spec station's instructions).
 - `docs/`: design, epics, stages, ADRs.
 
 ## Commands (from the repo root)
@@ -37,3 +39,11 @@ A change is done when every gate passes.
 - Dates are plain calendar dates (`YYYY-MM-DD`), with no time and no time zone. Nights are the difference in calendar days; check-out must be after check-in.
 - Prices are whole euros in the data; format them only through `lib/format.ts`.
 - Text a visitor reads is in English.
+
+## UX rules for the hotel
+
+- It works at 375px wide, with no sideways scroll.
+- Text meets WCAG AA contrast, and every control shows a visible focus ring.
+- Every list or result the change can empty has an empty state, worded in its spec.
+- No fake features: no booking, payment, availability or login. The footer says the hotel is fictional.
+- Every picture is public domain or CC-licensed, credited in the footer from `data/picture-credits.json`.

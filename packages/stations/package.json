@@ -1,0 +1,21 @@
+{
+  "name": "stations",
+  "private": true,
+  "type": "module",
+  "description": "The factory's single-call stations (spec, and later eval, review and tester), run by GitHub Actions.",
+  "scripts": {
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.132.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "eslint": "^9",
+    "typescript": "^5",
+    "typescript-eslint": "8.71.1",
+    "vitest": "5.0.5"
+  }
+}
