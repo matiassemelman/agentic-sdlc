@@ -2,30 +2,34 @@
 
 import { useEffect } from "react";
 
-/** Reveals [data-reveal] elements once as they enter the viewport. Content stays visible without script. */
+/**
+ * Reveals [data-reveal] elements as they come into view. Content stays visible without script.
+ * Anything already in view or above it is revealed, so a jump (an anchor link, a fast scroll) never
+ * leaves skipped content hidden. The state lives in a data attribute, not a class: React rewrites
+ * className on re-render and would hide it again.
+ */
 export function Reveal() {
   useEffect(() => {
-    const targets = document.querySelectorAll<HTMLElement>("[data-reveal]");
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          entry.target.classList.add("is-in");
-          io.unobserve(entry.target);
-        }
-      },
-      { rootMargin: "0px 0px -12% 0px", threshold: 0.1 },
-    );
-    targets.forEach((el) => io.observe(el));
-    const safety = window.setTimeout(() => {
-      targets.forEach((el) => {
-        const r = el.getBoundingClientRect();
-        if (r.top < innerHeight && r.bottom > 0) el.classList.add("is-in");
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      const line = window.innerHeight;
+      document.querySelectorAll<HTMLElement>("[data-reveal]:not([data-revealed])").forEach((el) => {
+        if (el.getBoundingClientRect().top < line) el.setAttribute("data-revealed", "");
       });
-    }, 2500);
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(check);
+    };
+    check();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    window.addEventListener("hashchange", schedule);
     return () => {
-      io.disconnect();
-      window.clearTimeout(safety);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("hashchange", schedule);
+      if (frame) cancelAnimationFrame(frame);
     };
   }, []);
   return null;

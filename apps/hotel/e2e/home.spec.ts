@@ -22,3 +22,22 @@ test("never scrolls sideways", async ({ page }) => {
   );
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test("rooms stay readable while the active room changes", async ({ page }) => {
+  await page.goto("/#rooms");
+  const rows = await page.getByTestId("room").all();
+  for (const row of rows) {
+    await row.scrollIntoViewIfNeeded();
+    await row.hover({ trial: false }).catch(() => {});
+  }
+  for (const row of rows) await expect(row).toHaveCSS("opacity", "1");
+});
+
+test("every animated element ends up readable after scrolling the whole page", async ({ page }) => {
+  await page.goto("/");
+  const animated = await page.locator("[data-reveal]").all();
+  expect(animated.length).toBeGreaterThan(0);
+  for (const el of animated) await el.scrollIntoViewIfNeeded();
+  await page.getByTestId("room").last().hover().catch(() => {});
+  for (const el of animated) await expect(el).toHaveCSS("opacity", "1");
+});
