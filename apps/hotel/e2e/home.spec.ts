@@ -12,7 +12,9 @@ test("shows the four rooms with their nightly price and capacity", async ({ page
 test("names the hotel and credits every picture", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/mirador/i);
-  await expect(page.locator("#credits a")).toHaveCount(5);
+  const credits = page.getByTestId("credit");
+  await expect(credits).toHaveCount(5);
+  for (const credit of await credits.all()) await expect(credit.getByRole("link")).toHaveCount(2);
 });
 
 test("never scrolls sideways", async ({ page }) => {
@@ -28,7 +30,7 @@ test("rooms stay readable while the active room changes", async ({ page }) => {
   const rows = await page.getByTestId("room").all();
   for (const row of rows) {
     await row.scrollIntoViewIfNeeded();
-    await row.hover({ trial: false }).catch(() => {});
+    await row.hover();
   }
   for (const row of rows) await expect(row).toHaveCSS("opacity", "1");
 });
@@ -38,6 +40,32 @@ test("every animated element ends up readable after scrolling the whole page", a
   const animated = await page.locator("[data-reveal]").all();
   expect(animated.length).toBeGreaterThan(0);
   for (const el of animated) await el.scrollIntoViewIfNeeded();
-  await page.getByTestId("room").last().hover().catch(() => {});
+  await page.getByTestId("room").last().hover();
   for (const el of animated) await expect(el).toHaveCSS("opacity", "1");
+});
+
+test("a jump past a section leaves the skipped content readable", async ({ page }) => {
+  await page.goto("/#built");
+  const skipped = page.locator("#house [data-reveal], #rooms [data-reveal]");
+  await expect(skipped.first()).toBeAttached();
+  for (const el of await skipped.all()) await expect(el).toHaveCSS("opacity", "1");
+});
+
+test("shows everything when the page script never loads", async ({ page }) => {
+  // Only the scripts: the stylesheet is served from the same folder and must still load.
+  await page.route((url) => url.pathname.startsWith("/_next/static/") && url.pathname.endsWith(".js"), (route) => route.abort());
+  await page.goto("/");
+  for (const el of await page.locator("[data-reveal]").all()) await expect(el).toHaveCSS("opacity", "1");
+});
+
+test("the focus ring shows on the hero button", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "keyboard focus is a desktop concern");
+  await page.goto("/");
+  const button = page.getByRole("link", { name: "Choose a room" });
+  await button.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect(button).toBeFocused();
+  // The ring takes the field's ink, not the button's own green, which matches the background.
+  await expect(button).toHaveCSS("outline-color", "rgb(226, 227, 223)");
 });

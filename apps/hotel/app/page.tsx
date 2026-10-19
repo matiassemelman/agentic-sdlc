@@ -40,33 +40,36 @@ function Letter() {
 export default function Home() {
   return (
     <>
-      <Stage rooms={getRooms()} hero={<Hero />} after={<Letter />} />
-      <section id="built" className="band" aria-label="How this page is built">
-        <p className="band__statement" data-reveal>
-          A software factory builds and changes this page. You can order its next change.
-        </p>
-        <Image
-          className="band__picture"
-          src={chart}
-          alt="Admiralty chart of Palma Bay, 1895, its soundings dotted across the water"
-          sizes="160px"
-          data-reveal
-        />
-        <div className="band__links" data-reveal>
-          <p className="band__question">Curious how it works?</p>
-          <ul>
-            <li><a className="link-plain" href={REPO}>Read the code on GitHub</a></li>
-            <li><a className="link-plain" href={`${REPO}/blob/main/docs/design.md`}>Read the design</a></li>
-          </ul>
-          <p className="band__city">Santa Catalina, Palma de Mallorca · a fictional hotel</p>
-        </div>
-      </section>
+      <main>
+        <Stage rooms={getRooms()} hero={<Hero />} after={<Letter />} />
+        <section id="built" className="band" aria-label="How this page is built">
+          <p className="band__statement" data-reveal>
+            A software factory builds and changes this page. You can order its next change.
+          </p>
+          <Image
+            className="band__picture"
+            src={chart}
+            alt="Admiralty chart of Palma Bay, 1895, its soundings dotted across the water"
+            sizes="160px"
+            data-reveal
+          />
+          <div className="band__links" data-reveal>
+            <p className="band__question">Curious how it works?</p>
+            <ul>
+              <li><a className="link-plain" href={REPO}>Read the code on GitHub</a></li>
+              <li><a className="link-plain" href={`${REPO}/blob/main/docs/design.md`}>Read the design</a></li>
+            </ul>
+            <p className="band__city">Santa Catalina, Palma de Mallorca · a fictional hotel</p>
+          </div>
+        </section>
+      </main>
       <footer className="footer">
         <p id="credits" className="footer__credits">
           Pictures:{" "}
           {credits.map((c, i) => (
-            <span key={c.page}>
-              <a className="link-plain" href={c.page}>{c.title}</a> by {c.creator}, {c.licence}
+            <span key={c.page} data-testid="credit">
+              <a className="link-plain" href={c.page}>{c.title}</a> by {c.creator},{" "}
+              <a className="link-plain" href={c.licenceUrl}>{c.licence}</a>
               {i < credits.length - 1 ? "; " : "."}
             </span>
           ))}

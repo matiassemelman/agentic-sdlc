@@ -1,6 +1,6 @@
 [
  {
-  "file": "assets/palma-cathedral-la-seu-and-reflection-at.jpg",
+  "file": "images/la-seu.jpg",
   "media": "image",
   "ref": "openverse:dc79a09d-5d6f-4705-b203-0262d2442854",
   "title": "Palma Cathedral (La Seu) and reflection at Parc de la Mar",
@@ -24,7 +24,29 @@
   "saved": "2026-10-16T13:06:13.377Z"
  },
  {
-  "file": "assets/the-bay-of-palma.jpg",
+  "file": "images/bellver.jpg",
+  "media": "image",
+  "ref": "openverse:f2964dae-10fa-4d40-839c-b5d2f8960678",
+  "title": "Castell de Bellver (Palma)",
+  "creator": "UlrichAAB",
+  "creatorUrl": "https://commons.wikimedia.org/wiki/User:UlrichAAB",
+  "date": null,
+  "license": "CC BY 3.0",
+  "licenseCode": "by",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+  "creditRequired": true,
+  "page": "https://commons.wikimedia.org/w/index.php?curid=17403497",
+  "via": "Wikimedia Commons",
+  "image": "https://upload.wikimedia.org/wikipedia/commons/c/cc/Castell_de_Bellver_%28Palma%29.jpg",
+  "width": 2984,
+  "height": 1776,
+  "bytes": 423389,
+  "credit": "\"Castell de Bellver (Palma)\" by UlrichAAB, CC BY 3.0, via Wikimedia Commons",
+  "notes": [],
+  "saved": "2026-10-16T13:09:43.413Z"
+ },
+ {
+  "file": "images/badia.jpg",
   "media": "image",
   "ref": "commons:71441854",
   "title": "The Bay Of Palma",
@@ -46,11 +68,11 @@
   "saved": "2026-10-16T13:06:36.824Z"
  },
  {
-  "file": "assets/serra-de-tramuntana-8.jpg",
+  "file": "images/tramuntana.jpg",
   "media": "image",
   "ref": "openverse:bcc15a19-70d8-4caf-be93-1b3cd980d67a",
   "title": "Serra de Tramuntana - 8",
-  "creator": "MARIA ROSA FERRE ✿",
+  "creator": "Maria Rosa Ferre",
   "creatorUrl": "https://www.flickr.com/photos/54943216@N08",
   "date": null,
   "license": "CC BY-SA 2.0",
@@ -63,14 +85,14 @@
   "width": 2912,
   "height": 1846,
   "bytes": 1087601,
-  "credit": "\"Serra de Tramuntana - 8\" by MARIA ROSA FERRE ✿, CC BY-SA 2.0, via Wikimedia Commons",
+  "credit": "\"Serra de Tramuntana - 8\" by Maria Rosa Ferre, CC BY-SA 2.0, via Wikimedia Commons",
   "notes": [
    "Share-alike: an altered version (recoloured, combined with other pictures) must be shared under the same licence."
   ],
   "saved": "2026-10-16T13:06:48.660Z"
  },
  {
-  "file": "assets/admiralty-chart-no-2428-dragonera-island-to.jpg",
+  "file": "images/chart.jpg",
   "media": "image",
   "ref": "commons:151362072",
   "title": "Admiralty Chart No 2428 Dragonera Island to Carril Bay Including Palma Bay, Published 1895",
@@ -90,27 +112,5 @@
   "credit": "\"Admiralty Chart No 2428 Dragonera Island to Carril Bay Including Palma Bay, Published 1895\" by United Kingdom Hydrographic Office, public domain, via Wikimedia Commons",
   "notes": [],
   "saved": "2026-10-16T13:06:49.971Z"
- },
- {
-  "file": "assets/castell-de-bellver-palma.jpg",
-  "media": "image",
-  "ref": "openverse:f2964dae-10fa-4d40-839c-b5d2f8960678",
-  "title": "Castell de Bellver (Palma)",
-  "creator": "user:UlrichAAB",
-  "creatorUrl": "https://commons.wikimedia.org/wiki/User:UlrichAAB",
-  "date": null,
-  "license": "CC BY 3.0",
-  "licenseCode": "by",
-  "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
-  "creditRequired": true,
-  "page": "https://commons.wikimedia.org/w/index.php?curid=17403497",
-  "via": "Wikimedia Commons",
-  "image": "https://upload.wikimedia.org/wikipedia/commons/c/cc/Castell_de_Bellver_%28Palma%29.jpg",
-  "width": 2984,
-  "height": 1776,
-  "bytes": 423389,
-  "credit": "\"Castell de Bellver (Palma)\" by user:UlrichAAB, CC BY 3.0, via Wikimedia Commons",
-  "notes": [],
-  "saved": "2026-10-16T13:09:43.413Z"
  }
 ]

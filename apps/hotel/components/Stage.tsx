@@ -11,8 +11,10 @@ import { RoomList } from "./RoomList";
  * The window shows the view of the room in the middle of the screen.
  */
 export function Stage({ rooms, hero, after }: { rooms: Room[]; hero: ReactNode; after: ReactNode }) {
-  const [active, setActive] = useState(rooms[0].id);
-  const activeView = rooms.find((r) => r.id === active)?.view ?? rooms[0].view;
+  // The list may be empty (a filter with no match) or may no longer hold the active room.
+  const [active, setActive] = useState<string | undefined>(rooms[0]?.id);
+  const activeRoom = rooms.find((r) => r.id === active) ?? rooms[0];
+  const activeView = activeRoom?.view ?? Object.keys(views)[0];
 
   useEffect(() => {
     const rows = document.querySelectorAll<HTMLElement>("[data-room]");
@@ -34,7 +36,7 @@ export function Stage({ rooms, hero, after }: { rooms: Room[]; hero: ReactNode; 
             <Image
               key={id}
               src={view.image}
-              alt={view.alt}
+              alt={id === activeView ? view.alt : ""}
               fill
               priority={i === 0}
               sizes="(max-width: 800px) 100vw, 47vw"
@@ -46,7 +48,7 @@ export function Stage({ rooms, hero, after }: { rooms: Room[]; hero: ReactNode; 
       </div>
       <div className="column">
         {hero}
-        <RoomList rooms={rooms} active={active} onActive={setActive} />
+        <RoomList rooms={rooms} active={activeRoom?.id} onActive={setActive} />
         {after}
       </div>
     </div>

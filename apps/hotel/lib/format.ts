@@ -1,6 +1,7 @@
 const eur = new Intl.NumberFormat("en-GB", {
   style: "currency",
   currency: "EUR",
+  minimumFractionDigits: 0,
   maximumFractionDigits: 0,
 });
 

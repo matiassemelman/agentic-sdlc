@@ -12,6 +12,7 @@
   --field-1: #1c3d30;
   --field-1-ink: #e2e3df;
   --field-1-muted: #b8c3bc;
+  --button-hover: #ffffff;
 
   --step-small: clamp(0.875rem, 0.85rem + 0.1vw, 0.9375rem);
   --step-body: clamp(1.125rem, 1.05rem + 0.3vw, 1.3125rem);
@@ -28,6 +29,7 @@
   --ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
   --t-press: 140ms;
   --t-hover: 180ms;
+  --t-ui: 240ms;
 }
 
 /* ---------- reset ---------- */
@@ -62,12 +64,14 @@ p { text-wrap: pretty; }
   transition: transform var(--t-press) var(--ease-out), background-color var(--t-hover) ease;
 }
 .button:active { transform: scale(0.97); }
+/* The button sits on the green field in its own green ink, so its ring takes the field's ink. */
+.button:focus-visible { outline-color: var(--field-1-ink); }
 .link { text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 0.22em; text-decoration-thickness: 0.07em; transition: text-decoration-color var(--t-hover) ease; }
 .link-plain { text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 0.07em; transition: text-decoration-thickness var(--t-hover) ease; }
 @media (hover: hover) and (pointer: fine) {
   .link:hover { text-decoration-color: currentColor; }
   .link-plain:hover { text-decoration-thickness: 0.14em; }
-  .button:hover { background: #ffffff; }
+  .button:hover { background: var(--button-hover); }
 }
 
 /* ---------- the stage: a fixed window, a scrolling column ---------- */
@@ -96,7 +100,7 @@ p { text-wrap: pretty; }
 /* ---------- rooms ---------- */
 .rooms { padding-block: var(--section) calc(var(--section) / 2); }
 .rooms .head { margin-bottom: 48px; }
-.room { padding: 20px 24px; margin-inline: -24px; color: var(--muted); transition: color var(--t-hover) ease, background-color var(--t-ui, 240ms) ease; }
+.room { padding: 20px 24px; margin-inline: -24px; color: var(--muted); transition: color var(--t-hover) ease, background-color var(--t-ui) ease; }
 .room.is-active { color: var(--ink); background: var(--surface); }
 .room__view { display: none; }
 .room__row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
@@ -132,9 +136,9 @@ p { text-wrap: pretty; }
 .footer a { color: var(--field-1-ink); }
 .footer__end { justify-self: end; }
 
-/* ---------- phone: the window becomes a band pinned to the top ---------- */
+/* ---------- phone (up to 800px; desktop rules use width > 50em so 800px is phone only) ---------- */
 .only-wide { display: none; }
-@media (min-width: 50em) { .only-wide { display: inline; } }
+@media (width > 50em) { .only-wide { display: inline; } }
 
 @media (max-width: 50em) {
   .stage { display: block; }
@@ -159,15 +163,20 @@ p { text-wrap: pretty; }
 
 /* ---------- motion: content stays visible without script or with reduced motion ---------- */
 @media (prefers-reduced-motion: no-preference) {
-  .js [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity 700ms var(--ease-out), transform 900ms var(--ease-out); transition-delay: calc(var(--i, 0) * 80ms); }
-  .js [data-reveal][data-revealed] { opacity: 1; transform: none; }
+  [data-reveal-ready] [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity 700ms var(--ease-out), transform 900ms var(--ease-out); transition-delay: calc(var(--i, 0) * 80ms); }
+  [data-reveal-ready] [data-reveal][data-revealed] { opacity: 1; transform: none; }
+  /* Rooms also ease their colour when they become active; the reveal rule above would drop that. */
+  [data-reveal-ready] .room[data-reveal] {
+    transition: opacity 700ms var(--ease-out), transform 900ms var(--ease-out), color var(--t-hover) ease, background-color var(--t-ui) ease;
+    transition-delay: calc(var(--i, 0) * 80ms), calc(var(--i, 0) * 80ms), 0s, 0s;
+  }
   .window__img { animation: drift 18s ease-in-out infinite alternate; }
   @keyframes drift { from { transform: scale(1.06); } to { transform: scale(1); } }
   .hero__line, .hero__nav { animation: rise 900ms var(--ease-out) both 150ms; }
   .hero__name { animation: rise 1000ms var(--ease-out) both 300ms; }
   @keyframes rise { from { opacity: 0; translate: 0 20px; } to { opacity: 1; translate: 0 0; } }
   @supports (animation-timeline: scroll()) {
-    @media (min-width: 50em) {
+    @media (width > 50em) {
       .hero__name { animation: rise 1000ms var(--ease-out) both 300ms, settle linear both; animation-timeline: auto, scroll(root); animation-range: normal, 0 100svh; }
       @keyframes settle { from { scale: 1; } to { scale: 0.94; } }
     }

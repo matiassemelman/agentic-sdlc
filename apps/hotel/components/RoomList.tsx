@@ -10,7 +10,7 @@ export function RoomList({
   onActive,
 }: {
   rooms: Room[];
-  active: string;
+  active: string | undefined;
   onActive: (id: string) => void;
 }) {
   return (
