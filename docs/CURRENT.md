@@ -20,11 +20,19 @@
   - The webhook secret lives only in `~/.config/agentic-sdlc/jira-webhook-secret` (mode 600) and in Vercel.
 - **Jira webhook created.** Issue updated, JQL `project = KAN`, pointing at `/api/jira`.
 - **The Factory account's language must stay English.** Jira translates its built-in statuses (Done, Ready) into the reader's language, and the factory finds statuses by name.
-- **Branch `stage-001-003-close`** (local) holds the epic reordered around verification and the stage doc's token-scope fix.
+- **PR #10 is open and green** (branch `stage-001-003-close`). It holds:
+  - the epic reordered around verification;
+  - the retro guardrails: seed diagnostics, `actionlint`, the private-terms check, `jira-scopes.ts`, `show-spec.sh`;
+  - this handoff.
+
+  Until it merges, `main` has an older copy of this file.
+- **The private terms live in the `PRIVATE_TERMS` repository variable.** The `repo-checks` job reads them, and the file never names them.
 
 ## Next Action
-1. Matias sets `GITHUB_DISPATCH_TOKEN` in Vercel (Production, Sensitive). Then redeploy: `vercel api /v13/deployments -X POST` with `gitSource` main for project `agentic-sdlc-factory`.
-2. Live test: Matias drags KAN-4 from Spec review to Build. Check that the webhook woke `Board` and that #8 moved to `station:build` with a `factory:approved` marker.
-3. Close #8 by hand: no build station exists yet, so it keeps the factory busy. Then test the queue, a wrong drag, and take plus reject with KAN-1 (about $0.07).
-4. `/code-review` of stage 3, then merge the close PR (it already carries the retro guardrails: seed diagnostics, `actionlint`, the private-terms check, `jira-scopes.ts`, `show-spec.sh`).
-5. Invite the first guest product owner to Jira as a User (not site admin), after the live test.
+1. Matias sets `GITHUB_DISPATCH_TOKEN` in Vercel (Production, Sensitive): https://vercel.com/matiassemelmans-projects/agentic-sdlc-factory/settings/environment-variables
+2. Matias merges PR #10. The merge deploys the relay to production, which picks up the token. Check: a signed test POST to `/api/jira` dispatches `Board`.
+3. Live test: Matias drags KAN-4 from Spec review to Build. Check that the webhook woke `Board` (Actions) and that #8 moved to `station:build` with a `factory:approved` marker (`scripts/show-spec.sh 8`, then the issue's last comment).
+4. Close #8 by hand: no build station exists yet, so it keeps the factory busy. Then test the queue, a wrong drag, and take plus reject with KAN-1 (about $0.07).
+5. `/code-review` of stage 3's code (PR #9's diff), fix what it finds, and mark the stage done in the epic and here.
+6. Invite the first guest product owner to Jira as a User (not site admin), after the live test.
+7. Next stage: STAGE-001-004, build with self-verification. Design comes first, with Matias deciding.
