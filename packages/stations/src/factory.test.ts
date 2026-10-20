@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { STATUS } from "./board.ts";
 import { reconcile, type Factory } from "./factory.ts";
 import { FakeBoard, FakeRecord, stamp } from "./fakes.ts";
+import { HttpError } from "./http.ts";
 import { exampleSpec } from "./fixtures.ts";
 import { seedPrepared } from "./seed.ts";
 import { StationError, type ModelCall } from "./spec-station.ts";
@@ -89,6 +90,24 @@ describe("the factory on the board", () => {
     expect(record.issues[1].title).toBe(`${usdPrices}: Prices in euros or US dollars`);
   });
 
+  it("takes the card waiting in Ready after a rejection, though GitHub and Jira still list what it just changed", async () => {
+    const { f, board, record, guestFilter, usdPrices } = await setup();
+    board.drag(guestFilter, STATUS.ready);
+    await reconcile(f);
+    board.drag(usdPrices, STATUS.ready);
+    await reconcile(f, usdPrices);
+    board.drag(guestFilter, STATUS.done, "po-id", "Ana");
+    // Seen live on 2026-10-20: the look right after the rejection still listed the closed run as open.
+    record.freezeListing();
+    board.freezeSearch();
+    await reconcile(f, guestFilter);
+
+    expect(record.issues[0].comments.filter((c) => c.body.startsWith("Spec rejected"))).toHaveLength(1);
+    expect(record.issues.map((i) => i.title)).toEqual([`${guestFilter}: Filter rooms by number of guests`, `${usdPrices}: Prices in euros or US dollars`]);
+    expect(board.status(usdPrices)).toBe(STATUS.specReview);
+    expect(board.notes(usdPrices).filter((n) => n.includes("This card belongs"))).toHaveLength(0);
+  });
+
   it("puts back a card a person dragged to a station the factory owns", async () => {
     const { f, board, record, guestFilter, stayTotal } = await setup();
     board.drag(stayTotal, STATUS.gates);
@@ -104,6 +123,53 @@ describe("the factory on the board", () => {
     expect(record.issues[0].labels).toContain("station:spec-approval");
   });
 
+  it("leaves a card it just took where it is, and waits, when the next look gets GitHub's list from before the run", async () => {
+    const { f, board, record, guestFilter, usdPrices } = await setup();
+    record.freezeListing();
+    board.drag(guestFilter, STATUS.ready);
+    await reconcile(f);
+    board.drag(usdPrices, STATUS.ready);
+    await reconcile(f, usdPrices);
+
+    expect(board.status(guestFilter)).toBe(STATUS.specReview);
+    expect(board.status(usdPrices)).toBe(STATUS.ready);
+    expect(board.notes(usdPrices).at(-1)).toContain(`busy with ${guestFilter}`);
+    expect(record.issues).toHaveLength(1);
+  });
+
+  it("counts an approval once when the next look gets GitHub's list from before it", async () => {
+    const { f, board, record, guestFilter } = await setup();
+    board.drag(guestFilter, STATUS.ready);
+    await reconcile(f);
+    record.freezeListing();
+    board.drag(guestFilter, STATUS.build, "po-id", "Ana");
+    await reconcile(f, guestFilter);
+    await reconcile(f, guestFilter);
+
+    expect(record.issues[0].comments.filter((c) => c.body.startsWith("Spec approved"))).toHaveLength(1);
+    expect(board.notes(guestFilter).filter((n) => n.startsWith("Spec approved"))).toHaveLength(1);
+    expect(record.issues[0].labels).toContain("station:build");
+  });
+
+  it("takes a card moved to Ready that Jira's search does not show yet", async () => {
+    const { f, board, guestFilter } = await setup();
+    board.freezeSearch();
+    board.drag(guestFilter, STATUS.ready);
+    await reconcile(f, guestFilter);
+
+    expect(board.status(guestFilter)).toBe(STATUS.specReview);
+  });
+
+  it("puts back a dragged card once, though Jira's search still shows it where the person left it", async () => {
+    const { f, board, stayTotal } = await setup();
+    board.drag(stayTotal, STATUS.gates);
+    board.freezeSearch();
+    await reconcile(f, stayTotal);
+
+    expect(board.status(stayTotal)).toBe(STATUS.backlog);
+    expect(board.notes(stayTotal).filter((n) => n.includes("No run is working on this card"))).toHaveLength(1);
+  });
+
   it("ends the run with a readable reason when the spec station fails", async () => {
     const { f, board, record, guestFilter } = await setup(async () => {
       throw new StationError("The model call was refused: the factory's Anthropic API key is missing or not valid.");
@@ -114,6 +180,20 @@ describe("the factory on the board", () => {
     expect(record.issues[0]).toMatchObject({ open: false, closedAs: "not_planned" });
     expect(record.issues[0].labels).toContain("outcome:failed");
     expect(record.issues[0].comments.at(-1)!.body).toContain("Anthropic API key");
+    expect(board.status(guestFilter)).toBe(STATUS.done);
+  });
+
+  it("ends the run with what failed when Jira fails after the run was opened", async () => {
+    const { f, board, record, guestFilter } = await setup();
+    board.link = async () => {
+      throw new HttpError("Jira", 503, "linking the run", "");
+    };
+    board.drag(guestFilter, STATUS.ready);
+    await reconcile(f);
+
+    expect(record.issues).toHaveLength(1);
+    expect(record.issues[0]).toMatchObject({ open: false, closedAs: "not_planned" });
+    expect(record.issues[0].comments.at(-1)!.body).toContain("Jira returned 503 while linking the run");
     expect(board.status(guestFilter)).toBe(STATUS.done);
   });
 

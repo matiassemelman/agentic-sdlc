@@ -101,7 +101,10 @@ export function decide(state: BoardState): Action[] {
   }
 
   const loose = state.cards.filter((c) => !withRun.has(c.key));
-  for (const card of loose.filter((c) => RUN_ONLY.includes(c.status))) {
+  // A card the factory itself put at a station has a run, even when GitHub's list (which lags behind
+  // writes) does not show it yet: it stays where it is and keeps the factory busy.
+  const unlisted = loose.filter((c) => RUN_ONLY.includes(c.status) && lastMove(c)?.by === state.factory);
+  for (const card of loose.filter((c) => RUN_ONLY.includes(c.status) && !unlisted.includes(c))) {
     actions.push({ kind: "restore", card, to: STATUS.backlog, reason: "No run is working on this card. To start it, move it to Ready; the factory moves it from there." });
   }
 
@@ -121,7 +124,8 @@ export function decide(state: BoardState): Action[] {
 
   // A run that ends in this pass (rejected or failed) frees the factory for the next pass, not this one.
   const ending = new Set(actions.flatMap((a) => (a.kind === "reject" || a.kind === "fail" ? [a.run.number] : [])));
-  const busy = state.runs.find((r) => r.station !== "station:maintainer" && !ending.has(r.number));
+  const run = state.runs.find((r) => r.station !== "station:maintainer" && !ending.has(r.number));
+  const busy = run ? (run.key ?? `run #${run.number}`) : unlisted[0]?.key;
   const limited = state.runsLast24h >= MAX_RUNS_PER_DAY;
   const next = prepared[0];
   if (next && !busy && !ending.size && !limited) {
@@ -129,7 +133,7 @@ export function decide(state: BoardState): Action[] {
   } else if (busy || limited) {
     const waiting = prepared.find((p) => p.card.key === state.hint);
     const reason = busy
-      ? `Waiting in Ready: the factory is busy with ${busy.key ?? `run #${busy.number}`}. It takes the card that has waited longest when it is free.`
+      ? `Waiting in Ready: the factory is busy with ${busy}. It takes the card that has waited longest when it is free.`
       : `Waiting in Ready: the factory already ran ${state.runsLast24h} times in the last 24 hours (limit ${MAX_RUNS_PER_DAY}).`;
     if (waiting) actions.push({ kind: "note", card: waiting.card, reason });
   }

@@ -9,30 +9,26 @@
 ## Active Stage
 **STAGE-001-003:** The Jira board, with prepared tickets
 **File:** `docs/stages/stage-001-003-jira-board.md`
-**Phase:** Refinement: live test on the board pending
+**Phase:** Refinement: live test done; closing (columns, review, the listing-lag fix)
 
 ## Context
-- **Merged in PR #9.** The board workflow `board.yml`, `seed.yml` and the relay `apps/factory` are on main.
+- **Merged in PRs #9 and #10.** The board workflow `board.yml`, `seed.yml`, the relay `apps/factory`, the reordered epic and the retro guardrails (seed diagnostics, `actionlint`, the private-terms check, `jira-scopes.ts`, `show-spec.sh`) are on main.
 - **Board seeded on 2026-10-20.** KAN-1, KAN-2 and KAN-3 (the prepared tickets) are in Backlog. KAN-4 is run #8's card, in Spec review. #8 was renamed `KAN-4: ...`.
 - **Relay live at https://agentic-sdlc-factory.vercel.app.**
   - Vercel project `agentic-sdlc-factory` (`prj_OvD0LwwK1DLaLZW8DXPsZ6CcHpoS`), root directory `apps/factory`.
-  - Four of its five variables are set. `GITHUB_DISPATCH_TOKEN` is missing.
+  - All five variables are set, `GITHUB_DISPATCH_TOKEN` included (2026-10-20).
+  - **Relay → Board verified on 2026-10-20:** a signed test POST to `/api/jira` answered 200 and dispatched `Board`, which ran green with no actions.
   - The webhook secret lives only in `~/.config/agentic-sdlc/jira-webhook-secret` (mode 600) and in Vercel.
-- **Jira webhook created.** Issue updated, JQL `project = KAN`, pointing at `/api/jira`.
+- **Jira webhook fixed and verified on 2026-10-20.** Issue updated, JQL `project = KAN`. Its URL pointed at Jira's own webhooks page, so no real event ever reached the relay; the signed test POST had not covered Jira's side. Now `https://agentic-sdlc-factory.vercel.app/api/jira`: a real drag reached the relay (`Atlassian Webhook HTTP Client`, 200) and dispatched `Board`.
+- **Live test on 2026-10-20** (details in the stage's Refinement): approval bound to the hash (KAN-4, #8), a repeated look that changes nothing, take with the spec on the card in 46 s (KAN-1, #11, $0.074), the queue note, both wrong drags put back, and a rejection (#11 closed as rejected).
+- **Board now:** KAN-1 and KAN-4 in Done (#8 closed by hand, #11 rejected). KAN-2 waits in Ready: the rejection's pass did not take it (the listing-lag bug, fixed on the branch). KAN-3 in Backlog. Runs in the last 24 h: 5 of 10.
 - **The Factory account's language must stay English.** Jira translates its built-in statuses (Done, Ready) into the reader's language, and the factory finds statuses by name.
-- **PR #10 is open and green** (branch `stage-001-003-close`). It holds:
-  - the epic reordered around verification;
-  - the retro guardrails: seed diagnostics, `actionlint`, the private-terms check, `jira-scopes.ts`, `show-spec.sh`;
-  - this handoff.
-
-  Until it merges, `main` has an older copy of this file.
 - **The private terms live in the `PRIVATE_TERMS` repository variable.** The `repo-checks` job reads them, and the file never names them.
 
 ## Next Action
-1. Matias sets `GITHUB_DISPATCH_TOKEN` in Vercel (Production, Sensitive): https://vercel.com/matiassemelmans-projects/agentic-sdlc-factory/settings/environment-variables
-2. Matias merges PR #10. The merge deploys the relay to production, which picks up the token. Check: a signed test POST to `/api/jira` dispatches `Board`.
-3. Live test: Matias drags KAN-4 from Spec review to Build. Check that the webhook woke `Board` (Actions) and that #8 moved to `station:build` with a `factory:approved` marker (`scripts/show-spec.sh 8`, then the issue's last comment).
-4. Close #8 by hand: no build station exists yet, so it keeps the factory busy. Then test the queue, a wrong drag, and take plus reject with KAN-1 (about $0.07).
-5. `/code-review` of stage 3's code (PR #9's diff), fix what it finds, and mark the stage done in the epic and here.
-6. Invite the first guest product owner to Jira as a User (not site admin), after the live test.
-7. Next stage: STAGE-001-004, build with self-verification. Design comes first, with Matias deciding.
+1. Matias: one more try at the board columns with his Atlassian language set to English (Ready and Done have no column; see the stage's Refinement). If it still fails, decide between the List view for guests and a company-managed project.
+2. Matias merges the closing PR from `stage-001-003-close-2`: the listing-lag fix and the review's fixes (68 tests).
+3. After the merge, the live check of the fix: dispatch `Board` (it should take KAN-2, which waits in Ready since KAN-1's rejection); edit KAN-2's spec on the card and move it to Build (the approval must be refused); move KAN-3 to Ready; reject KAN-2 (the same pass must take KAN-3). About $0.15.
+4. Mark the stage done in the epic and here.
+5. Invite the first guest product owner to Jira as a User (not site admin).
+6. Next stage: STAGE-001-004, build with self-verification. Design comes first, with Matias deciding.

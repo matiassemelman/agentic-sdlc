@@ -3,6 +3,7 @@ import { decide, STATUS, stationOf, type Action, type BoardState, type Observed,
 import type { GitHub } from "./github.ts";
 import { HttpError } from "./http.ts";
 import type { Jira } from "./jira.ts";
+import { readOwnWrites } from "./own-writes.ts";
 import { readSpecComment, SHOWN_SHA, specAdf, type Envelope } from "./render.ts";
 import { runSpecStation, StationError, type ModelCall } from "./spec-station.ts";
 import { listTicketIds, loadTicket, type Ticket } from "./tickets.ts";
@@ -38,20 +39,25 @@ export function describeFailure(error: unknown): string {
 /** What the board and GitHub show now: the open runs and every card that is not in Backlog or Done. */
 export async function observe(f: Factory, factory: string, hint?: string): Promise<BoardState> {
   const since = new Date((f.now?.() ?? new Date()).getTime() - 24 * 3600 * 1000).toISOString();
-  const [open, recent, cards] = await Promise.all([
+  const [open, recent, listed] = await Promise.all([
     f.record.runs({ open: true }),
     f.record.runs({ since }),
     f.board.search(`project = "${f.project}" AND status NOT IN ("${STATUS.backlog}", "${STATUS.done}") ORDER BY created ASC`),
   ]);
   const runs: Run[] = open.filter((r) => r.key).map((r) => ({ ...r, station: stationOf(r.labels) }));
-  const seen = new Set(cards.map((c) => c.key));
-  for (const run of runs) {
-    if (seen.has(run.key!)) continue;
-    const card = await f.board.card(run.key!);
-    if (card) cards.push(card);
-  }
-  const observed: Observed[] = await Promise.all(cards.map(async (c) => ({ ...c, moves: await f.board.moves(c.key) })));
-  return { runs, cards: observed, factory, runsLast24h: recent.length, ticketIds: listTicketIds(f.root), hint };
+  // JQL search is not read-after-write consistent, so it only names the cards, and it may miss the card
+  // whose change woke the factory: each one is read again on its own, which is. The cards of the open
+  // runs are read wherever they are.
+  const withRun = new Set(runs.map((r) => r.key!));
+  const woke = hint && new RegExp(`^${f.project}-\\d+$`).test(hint) ? [hint] : [];
+  const keys = [...new Set([...listed.map((c) => c.key), ...withRun, ...woke])];
+  const read = async (key: string): Promise<Observed | null> => {
+    const card = await f.board.card(key);
+    const active = card && (withRun.has(key) || (card.status !== STATUS.backlog && card.status !== STATUS.done));
+    return active ? { ...card, moves: await f.board.moves(key) } : null;
+  };
+  const cards = (await Promise.all(keys.map(read))).filter((c): c is Observed => c !== null);
+  return { runs, cards, factory, runsLast24h: recent.length, ticketIds: listTicketIds(f.root), hint };
 }
 
 /**
@@ -59,6 +65,8 @@ export async function observe(f: Factory, factory: string, hint?: string): Promi
  * to do. Returns the specs it wrote, for the run ledger.
  */
 export async function reconcile(f: Factory, hint?: string): Promise<Envelope[]> {
+  // The next look must see what this one did, though GitHub's issue list may not show it yet.
+  f = { ...f, record: readOwnWrites(f.record) };
   const me = await f.board.me();
   const specs: Envelope[] = [];
   const errors: unknown[] = [];
@@ -98,6 +106,7 @@ async function act(f: Factory, factory: string, action: Action): Promise<Envelop
       return;
     }
     case "note":
+      f.log?.(`${action.card.key}: ${action.reason}`);
       await f.board.comment(action.card.key, note(adf.text(action.reason)));
       return;
   }
@@ -121,23 +130,24 @@ async function take(f: Factory, card: Observed, ticketId: string): Promise<Envel
     labels: ["run", `ticket:${ticket.id}`, "station:spec"],
   });
   f.log?.(`${card.key}: run #${issue.number} opened`);
-  await f.board.move(card.key, STATUS.spec);
-  await f.board.link(card.key, issue.url, `Run #${issue.number} on GitHub`);
-
-  let result: Awaited<ReturnType<typeof runSpecStation>>;
+  // From here on the run exists, so whatever stops it (the model, Jira, GitHub) ends it with a reason.
+  let station = "station:spec";
   try {
-    result = await runSpecStation({ root: f.root, ticketId: ticket.id, issue: issue.number, card: card.key, call: f.call });
+    await f.board.move(card.key, STATUS.spec);
+    await f.board.link(card.key, issue.url, `Run #${issue.number} on GitHub`);
+    const result = await runSpecStation({ root: f.root, ticketId: ticket.id, issue: issue.number, card: card.key, call: f.call });
+    await f.record.comment(issue.number, result.comment);
+    await f.board.comment(card.key, specAdf(result.envelope, issue));
+    await f.record.relabel(issue.number, { add: ["station:spec-approval"], remove: [station] });
+    station = "station:spec-approval";
+    await f.board.move(card.key, STATUS.specReview);
+    f.log?.(`${card.key}: spec posted, $${result.envelope.meta.costUsd.toFixed(3)}`);
+    return result.envelope;
   } catch (error) {
     if (!(error instanceof StationError)) console.error(error);
-    await fail(f, { ...issue, station: "station:spec" }, card, describeFailure(error));
+    await fail(f, { ...issue, station }, card, describeFailure(error));
     return;
   }
-  await f.record.comment(issue.number, result.comment);
-  await f.board.comment(card.key, specAdf(result.envelope, issue));
-  await f.record.relabel(issue.number, { add: ["station:spec-approval"], remove: ["station:spec"] });
-  await f.board.move(card.key, STATUS.specReview);
-  f.log?.(`${card.key}: spec posted, $${result.envelope.meta.costUsd.toFixed(3)}`);
-  return result.envelope;
 }
 
 /** Ends a run that failed, on both sides, with a reason a person can act on. */
@@ -157,7 +167,8 @@ async function fail(f: Factory, run: Run, card: Observed | null, reason: string)
  * card shows that same spec, as the factory posted it: the product owner approves what they read.
  */
 async function approve(f: Factory, factory: string, run: Run, card: Observed, who: string, accountId: string): Promise<undefined> {
-  const posted = (await f.record.comments(run.number)).filter((c) => c.author === BOT && c.body.includes(SPEC_MARKER)).at(-1);
+  const comments = await f.record.comments(run.number);
+  const posted = comments.filter((c) => c.author === BOT && c.body.includes(SPEC_MARKER)).at(-1);
   const read = posted ? readSpecComment(posted.body) : ({ ok: false, reason: "the run issue has no spec" } as const);
   let problem = read.ok ? undefined : read.reason;
   if (read.ok) {
@@ -174,6 +185,11 @@ async function approve(f: Factory, factory: string, run: Run, card: Observed, wh
     return;
   }
   const sha = read.sha256;
+  // A later look may still get the run from GitHub's list as it was before this approval: it counts once.
+  if (comments.some((c) => c.author === BOT && c.body.includes(`<!-- factory:approved sha256=${sha} `))) {
+    await f.record.relabel(run.number, { add: ["station:build"], remove: ["station:spec-approval"] });
+    return;
+  }
   await f.record.comment(
     run.number,
     `Spec approved by ${who} on the board ([${card.key}](${f.board.cardUrl(card.key)})), sha256 \`${sha.slice(0, 12)}\`. Next station: build.\n` +
