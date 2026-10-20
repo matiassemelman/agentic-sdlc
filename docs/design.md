@@ -46,7 +46,7 @@ Rooms come from a JSON file in the repo.
 ## Security
 
 - Fixed tickets only; access code per demo; read-only mode without the code (shows the last complete run, triggers nothing).
-- One run at a time; at most 10 runs a day; USD 20 hard limit in the Anthropic console.
+- One run at a time; at most 10 runs a day; USD 18 monthly spend limit in the Anthropic console.
 - Agent token: branches and PRs only. `main` protected: required gates + Maintainer review via `CODEOWNERS`. No production secrets reachable by the agent.
 - The Anthropic API key lives in the GitHub environment `factory`, which only `main` may use. Workflows that run pull-request code (e2e on previews) get no secrets.
 - A spec approval is bound to the spec's SHA-256: a spec edited after the spec station wrote it cannot be approved.

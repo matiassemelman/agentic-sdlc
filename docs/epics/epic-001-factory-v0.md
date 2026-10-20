@@ -6,7 +6,7 @@ Goal: a ticket travels from a GitHub issue to production through every station i
 
 1. **STAGE-001-001** Hotel baseline + fast gates + ephemeral environment + production deploy Done 2026-10-19.
 2. **STAGE-001-002** Spec station and spec approval (labels on the issue). In refinement since 2026-10-19.
-3. **STAGE-001-003** Build station: `claude-code-action`, `AGENTS.md`, repo skills, agent permissions, branch protection, `CODEOWNERS`. Before E2E becomes a required check: a skipped job counts as passed, so a pending or failed deployment must not leave a green check.
+3. **STAGE-001-003** Build station: `claude-code-action`, `AGENTS.md`, repo skills, agent permissions, branch protection, `CODEOWNERS`. Before E2E becomes a required check: a skipped job counts as passed, so a pending or failed deployment must not leave a green check. The approval workflow's `station:build` label cannot start the build: labels added with `GITHUB_TOKEN` trigger no workflow, so the approval dispatches the build station (`workflow_dispatch`, which `GITHUB_TOKEN` may trigger).
 4. **STAGE-001-004** Eval and AI code review gates.
 5. **STAGE-001-005** Agent tester (code-mode Playwright) with a report on the PR.
 6. **STAGE-001-006** Self-healing: errors back to the agent, max 2 retries, escalation.
