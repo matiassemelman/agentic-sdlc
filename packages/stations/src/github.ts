@@ -6,6 +6,12 @@ export type IssueComment = { author: string; body: string };
 
 const KEY = /^([A-Z][A-Z0-9]*-\d+): /;
 
+/** The labels after a relabel: the kept ones in their order, then the added ones. */
+export const relabeled = (labels: string[], { add = [], remove = [] }: { add?: string[]; remove?: string[] }) => [
+  ...labels.filter((l) => !remove.includes(l)),
+  ...add.filter((l) => !labels.includes(l)),
+];
+
 /** The card key a run's title starts with, or null for a run opened before the board existed. */
 export function keyOf(title: string): string | null {
   return KEY.exec(title)?.[1] ?? null;

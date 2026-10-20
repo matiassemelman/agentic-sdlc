@@ -1,7 +1,7 @@
 // In-memory stand-ins for the board (Jira) and the record (GitHub), shared by the tests.
 import { adfText, type Adf } from "./adf.ts";
 import { STATUS } from "./board.ts";
-import { keyOf, type IssueComment, type RunIssue } from "./github.ts";
+import { keyOf, relabeled, type IssueComment, type RunIssue } from "./github.ts";
 import type { Card, CardComment, Move } from "./jira.ts";
 
 let tick = 0;
@@ -14,6 +14,7 @@ export class FakeBoard {
   readonly cards = new Map<string, Stored>();
   readonly factory = { accountId: "factory-id", displayName: "Factory" };
   private next = 1;
+  private index?: Card[];
   statusNames: string[] = Object.values(STATUS);
 
   cardUrl(key: string) {
@@ -28,8 +29,7 @@ export class FakeBoard {
   }
   async search(jql: string) {
     const label = /labels = "([^"]+)"/.exec(jql)?.[1];
-    return [...this.cards.values()]
-      .map((s) => s.card)
+    return (this.index ?? [...this.cards.values()].map((s) => s.card))
       .filter((c) => (label ? c.labels.includes(label) && c.status !== STATUS.done : c.status !== STATUS.backlog && c.status !== STATUS.done))
       .map((c) => ({ ...c }));
   }
@@ -58,6 +58,11 @@ export class FakeBoard {
     return key;
   }
 
+  /** Jira's JQL search is not read-after-write consistent: from now on it answers with the cards as they are now. */
+  freezeSearch() {
+    this.index = [...this.cards.values()].map((s) => ({ ...s.card, labels: [...s.card.labels] }));
+  }
+
   /** A person (or the factory) drags a card; the history records who. */
   drag(key: string, status: string, by = "guest-id", byName = "Guest") {
     const stored = this.cards.get(key)!;
@@ -78,9 +83,10 @@ type Issue = RunIssue & { body: string; comments: IssueComment[]; closedAs?: str
 export class FakeRecord {
   readonly issues: Issue[] = [];
   private next = 10;
+  private listing?: Issue[];
 
   async runs(filter: { open: true } | { since: string }) {
-    const runs = this.issues.filter((i) => i.labels.includes("run"));
+    const runs = (this.listing ?? this.issues).filter((i) => i.labels.includes("run"));
     return ("open" in filter ? runs.filter((i) => i.open) : runs.filter((i) => i.createdAt >= filter.since)).map((i) => ({ ...i, labels: [...i.labels] }));
   }
   async issue(number: number) {
@@ -98,15 +104,19 @@ export class FakeRecord {
   async comments(number: number) {
     return this.get(number).comments.map((c) => ({ ...c }));
   }
-  async relabel(number: number, { add = [], remove = [] }: { add?: string[]; remove?: string[] }) {
+  async relabel(number: number, change: { add?: string[]; remove?: string[] }) {
     const issue = this.get(number);
-    issue.labels = [...issue.labels.filter((l) => !remove.includes(l)), ...add.filter((l) => !issue.labels.includes(l))];
+    issue.labels = relabeled(issue.labels, change);
   }
   async close(number: number, reason: string) {
     Object.assign(this.get(number), { open: false, closedAs: reason });
   }
   async retitle(number: number, title: string) {
     Object.assign(this.get(number), { title, key: keyOf(title) });
+  }
+  /** GitHub's issue list lags behind writes: from now on it answers with the issues as they are now. */
+  freezeListing() {
+    this.listing = structuredClone(this.issues);
   }
   get(number: number) {
     const issue = this.issues.find((i) => i.number === number);

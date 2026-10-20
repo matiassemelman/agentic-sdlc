@@ -16,7 +16,9 @@ trap 'rm -f "$terms"' EXIT
 printf '%s\n' "$PRIVATE_TERMS" | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -v '^$' > "$terms"
 
 found=0
-if hits=$(git ls-files -z | xargs -0 grep -I -n -i -F -f "$terms" 2>/dev/null | cut -d: -f1,2); then
+# Not the pipeline's exit status: xargs answers 123 when any batch has no match, even if another has.
+hits=$(git ls-files -z | xargs -0 grep -H -I -n -i -F -f "$terms" 2>/dev/null | cut -d: -f1,2 || true)
+if [ -n "$hits" ]; then
   echo "Private terms in these lines:"
   printf '%s\n' "$hits"
   found=1

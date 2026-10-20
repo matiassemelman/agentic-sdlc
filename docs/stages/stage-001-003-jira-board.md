@@ -81,6 +81,38 @@
   - `scripts/show-spec.sh <n>` prints a run's spec without its data block.
 - **Seeded on 2026-10-20:** KAN-1 to KAN-3 in Backlog, and KAN-4 (run #8) in Spec review.
 
+## Live test (2026-10-20)
+- **The webhook's URL pointed at Jira's own webhooks page,** so no real event reached the relay. The check after the merge, a signed POST we built ourselves, came back green without touching Jira's side. A check counts only when the event comes from the real source.
+- **The lost event changed nothing.** Matias's first drag of KAN-4 to Build never reached the factory. The first event after the fix (KAN-1 to Triage) woke `Board`, which read the board and applied the pending approval.
+- **Verified on the board, run by run:**
+  - Approval: #8 to `station:build` with `factory:approved` bound to the spec's sha256, and the comment on the card.
+  - A second look with nothing changed: no action.
+  - Take: KAN-1 from Ready to Spec review with its spec in 46 s (#11, $0.074).
+  - Queue: KAN-2 waits in Ready with a note while #11 waits for its approval.
+  - Wrong drags: KAN-2 (no run) from Ready to Acceptance goes back to Backlog; KAN-1 from Spec review to Acceptance goes back to Spec review. Each with a comment that says why.
+  - Rejection: #11 closed as not planned with `outcome:rejected`.
+- **Bug: the rejection's pass did not take the card waiting in Ready.** GitHub's issue list still showed #11 open right after the factory closed it, so the factory counted itself busy, and nothing woke it again. The unit test passed because the fakes are always consistent. Jira's JQL search has the same lag, and Atlassian documents it ([search and reconcile](https://developer.atlassian.com/cloud/jira/platform/search-and-reconcile/)).
+  - Fix: `reconcile` lays the runs it wrote over GitHub's list (`own-writes.ts`), and `observe` reads every card again on its own, since a single card read is consistent.
+  - The fakes can now freeze their listings. Two tests reproduce the lag, and each fails without its half of the fix.
+- **Ready and Done have no column on the board.** The statuses are in the workflow (ids 10011 and 10003), but no column shows them. With hidden statuses the board is in "Advanced" mode, where the board cannot add columns. The Configure columns dialog shows an error when saving, and Space settings has no Board page in the new interface. Until it is fixed, cards move to Ready and Done from the List view or the card's status. Creating a column there also creates a new status with its name: it must not be published, since two statuses named Done would break the lookup by name.
+- **A Spanish-speaking product owner reads "Listo" and "Finalizada"** where the card says Ready and Done. Column names are free text and are not translated, so the columns fix this on the board.
+
+## Review (2026-10-20)
+`/code-review high` of PRs #9 and #10 and the listing-lag fix. Each finding was checked against the code before it was fixed, and each fix has a test that fails without it:
+- **Lag across Board runs, not only inside one.** A run that starts while GitHub's list still shows the previous one's state:
+  - A card the factory itself put at a station is never treated as dragged there by hand. It stays, and the factory counts itself busy with it.
+  - An approval already on the run issue for the same sha256 is not posted again.
+- **The card that woke the factory is read on its own,** since the search may not show it yet. The hint counts only if it is a key of the factory's space.
+- **Whatever stops a run after it is opened** (Jira or GitHub, not only the model) ends it with what failed, instead of "cancelled or timed out" on the next pass.
+- **`check-private-terms.sh` could miss a hit.** With `pipefail`, xargs answers 123 when any batch has no match, so the hits were dropped. It also lacked `-H` for a batch of one file. Reproduced before the fix.
+- **A spec without a card** told the reader to use the old `spec:approved` labels.
+- **Smaller:** one chain of Jira calls per card instead of two waves, and the relabel rule in one place (`relabeled` in `github.ts`).
+
+**Known limits, not fixed:**
+- Seed shares Board's concurrency group, and GitHub keeps only the newest pending run per group: run Seed while no Board run waits (noted in `seed.yml`).
+- The comments of a card or run issue are read up to 100, oldest first. A card with more would hide its newest spec from the approval.
+- A rejection seen again by a run that starts during GitHub's lag posts its comment twice. Harmless; the build station's dispatch must be idempotent the way the approval now is.
+
 ## Done when
 - A guest moves a prepared card to Ready and, without opening GitHub, sees the spec on the card within a minute.
 - Moving the card to Build approves the spec: the run issue shows the approval bound to the hash. Moving it to Done rejects it.

@@ -14,6 +14,8 @@ permissions:
   contents: read
   issues: write
 
+# The same group as Board, so the two never write the board at once. GitHub keeps only the newest
+# pending run in a group, across workflows: run Seed when no Board run is waiting, or one is dropped.
 concurrency:
   group: factory-board
   cancel-in-progress: false

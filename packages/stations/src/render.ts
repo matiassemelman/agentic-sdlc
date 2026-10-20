@@ -46,7 +46,7 @@ export function renderSpecComment(envelope: Envelope): string {
 function howToDecide(meta: SpecMeta): string {
   return meta.card
     ? `Decide on the board: move ${meta.card} from Spec review to Build to approve it, or to Done to reject it.`
-    : "Approve with the label `spec:approved` or reject with `spec:rejected`.";
+    : "Decide on the board: move the run's card from Spec review to Build to approve it, or to Done to reject it.";
 }
 
 function stationLine(meta: SpecMeta): string {

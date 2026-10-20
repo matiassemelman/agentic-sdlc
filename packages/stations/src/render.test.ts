@@ -21,7 +21,7 @@ describe("spec comment", () => {
     expect(comment).toContain("**AC-2** (e2e)  \nGiven the rooms in rooms.json  \nWhen the visitor chooses 3 guests  \nThen exactly Bellver and Badia show");
     expect(comment).toContain("approving the spec approves these");
     expect(comment).toContain("4,200 tokens in (0 from cache) · 900 out · $0.038 · 14 s");
-    expect(comment).toContain("`spec:approved`");
+    expect(comment).toContain("move the run's card from Spec review to Build to approve it");
   });
 
   it("refuses a comment whose visible text was edited", () => {
