@@ -11,8 +11,9 @@ export type Room = {
   description: string;
 };
 
+/** A fresh copy each call, so a caller that sorts or edits rooms never changes them for everyone. */
 export function getRooms(): Room[] {
-  return rooms;
+  return rooms.map((room) => ({ ...room }));
 }
 
 export function guestsLabel(maxGuests: number): string {

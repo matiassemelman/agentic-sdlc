@@ -1,4 +1,6 @@
 # End-to-end tests against the hotel's ephemeral environment (Vercel preview) and, after a merge, against production.
+# This runs the deployed commit's code in the base repository's context, so it gets no secrets, no cache and no
+# stored git credentials, and it runs only for deployments that Vercel itself created.
 name: E2E
 
 on: deployment_status
@@ -11,20 +13,21 @@ jobs:
     name: E2E on ${{ github.event.deployment.environment }}
     if: >-
       github.event.deployment_status.state == 'success' &&
-      contains(github.event.deployment_status.environment_url, 'hotel-mirador')
+      github.event.deployment.creator.login == 'vercel[bot]' &&
+      startsWith(github.event.deployment_status.environment_url, 'https://hotel-mirador-')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.deployment.sha }}
-      - uses: pnpm/action-setup@v4
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-          cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter hotel exec playwright install --with-deps chromium
+      - run: pnpm --filter hotel exec playwright install --with-deps chromium webkit
       - run: pnpm --filter hotel e2e
         env:
           E2E_BASE_URL: ${{ github.event.deployment_status.environment_url }}

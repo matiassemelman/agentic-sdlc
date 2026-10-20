@@ -15,4 +15,4 @@ A visitor orders a change to a demo hotel site, approves its spec, accepts it in
 | Gate | Where |
 |---|---|
 | Lint, types, unit tests, build, design house rules | `.github/workflows/gates.yml`, on every PR |
-| E2E (Playwright, desktop and phone) | `.github/workflows/e2e.yml`, on every preview deployment and on production |
+| E2E (Playwright: desktop, Android phone, 375px iPhone in WebKit) | `.github/workflows/e2e.yml`, on every preview deployment and on production |
