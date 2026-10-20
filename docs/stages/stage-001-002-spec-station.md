@@ -26,5 +26,12 @@
   - Under-16s are exempt. From the ninth night of a stay, the tax is halved. 10% VAT is added on top.
 - **EUR to USD:** the ECB reference rate on 2026-10-19 was 1 EUR = 1.1225 USD (eurofxref-daily.xml).
 
+## Refinement (2026-10-20)
+- **First real run** (#4, `guest-filter`): Opus 5.5 took 24 s and cost $0.070 (6,474 tokens in, none from cache; 2,053 out). The capacities and the empty state matched `rooms.json`.
+- **Rejected, with a real reason:** AC-4 checked that "No room sleeps that many guests" does not show, but the change never shows those words, so the test would pass with a broken filter. The `write-spec` skill now says a criterion that checks text quotes the exact words the change displays.
+- **A refused order showed as a failed run.** A refusal is an expected outcome: the run now stays green, with an "Order refused" notice, and opens nothing.
+- The rejection path and the refusal of a second order work. The approval path waits for the next order.
+- The spend limit is USD 18 a month, set by Matias.
+
 ## Done when
 Ordering a ticket from GitHub produces a valid spec comment. Approving it moves the issue to `station:build`; rejecting it closes the issue. A second order while a run is open is refused.

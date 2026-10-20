@@ -48,19 +48,27 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter stations
 
+      # A refused order is an expected outcome, not a failure: the run stays green, says why in a
+      # notice, and the steps after this one are skipped.
       - name: Admit the order
+        id: admit
         run: |
           active=$(gh issue list --state open --search 'label:run -label:"station:maintainer"' --json number --jq '[.[].number]')
           since=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
           recent=$(gh issue list --state all --label run --search "created:>=$since" --limit 100 --json number --jq length)
-          if ! node packages/stations/src/run-order.ts --ticket "$TICKET" --active "$active" --recent "$recent" \
+          if node packages/stations/src/run-order.ts --ticket "$TICKET" --active "$active" --recent "$recent" \
               --actor "$GITHUB_ACTOR" --run-url "$RUN_URL" --out out; then
-            { echo "### Order refused"; cat out/refusal.md 2>/dev/null; } >> "$GITHUB_STEP_SUMMARY"
+            echo "admitted=true" >> "$GITHUB_OUTPUT"
+          elif [ -s out/refusal.md ]; then
+            echo "::notice title=Order refused::$(tr '\n' ' ' < out/refusal.md)"
+            { echo "### Order refused"; cat out/refusal.md; } >> "$GITHUB_STEP_SUMMARY"
+          else
             exit 1
           fi
 
       - name: Open the run
         id: open
+        if: steps.admit.outputs.admitted == 'true'
         run: |
           url=$(gh issue create --title "$(cat out/issue-title.txt)" --body-file out/issue.md \
             --label run --label "ticket:$TICKET" --label station:spec)
@@ -68,12 +76,14 @@ jobs:
           echo "### Run [#${url##*/}]($url): $(cat out/issue-title.txt)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Spec station (Opus 5.5, one call)
+        if: steps.open.outputs.issue
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ISSUE: ${{ steps.open.outputs.issue }}
         run: node packages/stations/src/run-spec.ts --ticket "$TICKET" --issue "$ISSUE" --out out
 
       - name: Post the spec for approval
+        if: steps.open.outputs.issue
         env:
           ISSUE: ${{ steps.open.outputs.issue }}
         run: |
