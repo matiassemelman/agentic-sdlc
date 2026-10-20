@@ -17,10 +17,12 @@ export type ModelCall = (request: { model: string; system: string; user: string 
 /** A station failure a person can read: it goes into the issue as is. */
 export class StationError extends Error {}
 
-export async function runSpecStation({ root, ticketId, issue, call, clock = () => performance.now() }: {
+export async function runSpecStation({ root, ticketId, issue, card, call, clock = () => performance.now() }: {
   root: string;
   ticketId: string;
   issue: number;
+  /** The run's card on the board, if it has one. */
+  card?: string;
   call: ModelCall;
   clock?: () => number;
 }): Promise<{ envelope: Envelope; comment: string }> {
@@ -49,7 +51,7 @@ export async function runSpecStation({ root, ticketId, issue, call, clock = () =
   const envelope: Envelope = {
     version: 1,
     spec,
-    meta: { issue, ticket: ticket.id, model, tokens: result.tokens, costUsd: costUsd(model, result.tokens), seconds },
+    meta: { issue, ...(card ? { card } : {}), ticket: ticket.id, model, tokens: result.tokens, costUsd: costUsd(model, result.tokens), seconds },
   };
   return { envelope, comment: renderSpecComment(envelope) };
 }

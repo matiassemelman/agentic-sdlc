@@ -1,6 +1,6 @@
 # agentic-sdlc
 
-A small-scale software factory, after Uber and Spotify: a visitor orders a change to a demo hotel app and watches it travel from ticket to production, approving it at the human checkpoints.
+A small-scale software factory, after Uber and Spotify: a product owner puts a change to a demo hotel app on the board and watches it travel from ticket to production, deciding at the human checkpoints.
 
 ## Language
 
@@ -11,11 +11,27 @@ The whole delivery line from ticket to production, where agents do the work and 
 _Avoid_: pipeline (that is only CI), software house or outsourcing (the consultancy sense)
 
 **Ticket**:
-One of the predefined change requests a visitor can order; the unit of work that enters the factory.
-_Avoid_: task, story, feature request
+A change request on the board, either one of the prepared tickets or one a product owner writes; the unit of work the factory takes from Ready.
+_Avoid_: task, story, feature request, issue, work item
+
+**Prepared ticket**:
+A ticket whose text is kept in the repository with its facts checked; the factory reads that text, never the copy on the board.
+_Avoid_: template, fixed ticket, demo ticket
+
+**Board**:
+The Jira kanban where people see the factory's work and decide; each column is a station or a queue.
+_Avoid_: dashboard, panel, tracker
+
+**Ready**:
+The queue the factory takes its next ticket from, oldest first, one at a time.
+_Avoid_: to do, selected, sprint
+
+**Triage**:
+The Maintainer's reading of a ticket a product owner wrote, before the factory lets any agent read it.
+_Avoid_: review, grooming, screening
 
 **Run**:
-One ticket's trip through the factory, from the order to production or to rejection.
+One ticket's trip through the factory, from Ready to production or to rejection.
 _Avoid_: job, execution, pipeline run
 
 **Station**:
@@ -47,12 +63,12 @@ _Avoid_: eval suite, evals, test set
 ### People
 
 **Approval**:
-A decision a person makes at a fixed station of a run: approving the spec, accepting the change, or merging it.
+A decision a person makes at a fixed station of a run: triaging a written ticket, approving the spec, accepting the change, or merging it.
 _Avoid_: human gate, sign-off, human in the loop
 
 **Product owner**:
-The visitor who orders the ticket, approves the spec and accepts the change in its ephemeral environment.
-_Avoid_: user, client, requester, reviewer
+The person who prioritises the board, writes or picks a ticket, moves it to Ready, approves its spec and accepts the change in its ephemeral environment. A role: in a demo, a guest plays it.
+_Avoid_: user, client, requester, reviewer, visitor
 
 **Maintainer**:
 The repository owner, the only person who can merge a change into production.

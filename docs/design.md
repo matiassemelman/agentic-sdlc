@@ -1,6 +1,6 @@
 # agentic-sdlc — design
 
-A small-scale software factory, after Uber ("Efficient Software Factory", 2026) and Spotify ("Introducing Spotify Technology", 2026). A visitor plays **Product owner**: orders a ticket for a demo hotel app, approves its spec, accepts it in an ephemeral environment and sends the PR to the **Maintainer** (Matias), who merges it to production. Vocabulary: [`GLOSSARY.md`](../GLOSSARY.md).
+A small-scale software factory, after Uber ("Efficient Software Factory", 2026) and Spotify ("Introducing Spotify Technology", 2026). A guest plays **Product owner** on a Jira board: moves a ticket for a demo hotel app to Ready, approves its spec, accepts it in an ephemeral environment and sends the PR to the **Maintainer** (Matias), who merges it to production. Vocabulary: [`GLOSSARY.md`](../GLOSSARY.md).
 
 Agreed with Matias on 2026-10-15.
 
@@ -8,9 +8,9 @@ Agreed with Matias on 2026-10-15.
 
 | # | Station | Who | How | Practice it shows |
 |---|---|---|---|---|
-| 1 | Ticket | Product owner | Picks 1 of 3 fixed tickets in the panel | No free text = no prompt-injection surface |
+| 1 | Ticket | Product owner | Moves 1 of 3 prepared tickets to Ready on the board; the factory pulls from Ready, one run at a time | Prepared text from the repo = no prompt-injection surface (written tickets, with the Maintainer's triage: STAGE-001-004) |
 | 2 | Spec | Opus 5.5 | One API call → `specs/<n>-<slug>.md`, Given/When/Then criteria | Spotify: judgment is the bottleneck |
-| 3 | Spec approval | Product owner | Approve or reject (reject closes the ticket) | Humans decide at the cheapest point |
+| 3 | Spec approval | Product owner | On the board: Spec review → Build approves, → Done rejects; bound to the spec's hash | Humans decide at the cheapest point |
 | 4 | Build | Executor model in `claude-code-action` | The only agent loop; writes code + unit and e2e tests, opens the PR | Uber: managed agents |
 | 5 | Fast gates | CI | Lint, type check, build, unit tests (~1 min) | Cheapest check first |
 | 6 | Ephemeral environment | Vercel | Preview deployment per PR (public for the hotel app) | Per-PR environments |
@@ -33,7 +33,9 @@ Rooms come from a JSON file in the repo.
 
 - Monorepo, two Vercel projects: `apps/hotel` (the only path the agent may change) and `apps/factory` (the panel).
 - Orchestration: GitHub Actions + `anthropics/claude-code-action` with Matias's own API key (subscription credentials may not serve other users). Single-shot stations call the Messages API directly.
-- State: GitHub is the database (issue labels and comments). The panel reads it through one server route cached for 5 s, shared by every viewer.
+- People work on the board: a Jira kanban whose ten columns are the stations and queues (`Backlog → Triage → Ready → Spec → Spec review → Build → Gates → Acceptance → Merge → Done`). The factory works on GitHub: each run is an issue whose labels and comments are its record. Each side writes only its own data.
+- From the board to GitHub: a signed Jira webhook → a relay in `apps/factory` (Vercel) → the `Board` workflow (`workflow_dispatch`). The workflow reads the board and GitHub and brings them into line (reconciliation), so a lost, repeated or forged message changes nothing. No Jira automation: Free allows 150 steps a month.
+- The panel (v1) reads GitHub through one server route cached for 5 s, shared by every viewer.
 - Context: `AGENTS.md` (tool-agnostic; Cursor, Copilot and Gemini read it too), skills versioned in the repo (`write-spec`, `implement-ticket`, `verify`), specs and ADRs as memory.
 - Context graph: code (files, exports, imports, tests) plus delivery artifacts (ticket → spec → criterion → test → PR → run → deploy, ADRs). Built deterministically in CI on every merge to `main`, stored as versioned JSON, queried by the agent through a CLI (`graph query …`), not MCP. At this scale it does not pay for itself; the benchmark measures that honestly.
 - Design: the hotel site follows the taste skill v2 (`.claude/skills/design-taste-frontend`). That skill is for public pages, not dashboards, so the panel does not use it. The build agent follows the hotel's existing tokens; it does not run the taste skill per ticket.
@@ -45,11 +47,11 @@ Rooms come from a JSON file in the repo.
 
 ## Security
 
-- Fixed tickets only; access code per demo; read-only mode without the code (shows the last complete run, triggers nothing).
+- Prepared tickets: the factory reads their text from `tickets/`, never from the card, because on Jira Free every user administers every space and can edit any card. Guests are invited as Jira users (Free has no public access); `Reset demo` restores the board.
 - One run at a time; at most 10 runs a day; USD 18 monthly spend limit in the Anthropic console.
 - Agent token: branches and PRs only. `main` protected: required gates + Maintainer review via `CODEOWNERS`. No production secrets reachable by the agent.
-- The Anthropic API key lives in the GitHub environment `factory`, which only `main` may use. Workflows that run pull-request code (e2e on previews) get no secrets.
-- A spec approval is bound to the spec's SHA-256: a spec edited after the spec station wrote it cannot be approved.
+- The Anthropic API key and the Factory account's Jira token live in the GitHub environment `factory`, which only `main` may use. Workflows that run pull-request code (e2e on previews) get no secrets. The relay holds only the webhook secret and a GitHub token that can dispatch workflows on this repository.
+- A spec approval is bound to the spec's SHA-256: it counts only if the run issue holds the unchanged spec and the card shows that same spec, unedited. Moves made by the Factory account are never taken as decisions.
 
 ## Cost (official prices, 2026-10-15)
 
