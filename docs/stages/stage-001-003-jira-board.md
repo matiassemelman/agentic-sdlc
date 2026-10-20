@@ -98,6 +98,10 @@
   - The Configure columns dialog failed to save because a new column also creates a new status with the column's name, and "Done" and "Ready" clash with the statuses already there. The interface says only "Unable to save your settings".
   - What worked: create the column, drag the existing status into it, remove the status the column created, and publish. With every status in its column, the board leaves Advanced mode.
   - Checked through the API: 10 columns, Ready on 10011 and Done on 10003, and still 10 statuses.
+- **The spec station failed on KAN-2** (run #13, after PR #12): "Failed to parse structured output: Unterminated string in JSON at position 3859".
+  - The SDK's `messages.parse` parses each text block on its own and throws before the station reads the stop reason. A cut-off answer, a refusal or a JSON split across blocks all became "failed in an unexpected way", and the answer, with its tokens, was lost.
+  - Fix: `messages.create` (the same request, as the SDK's source shows) and `answerOf`. It joins the text blocks and leaves a cut-off or a refusal to the station. Any other broken answer says its stop reason, its length, its blocks and its tokens. The output limit goes from 4096 to 8192, since a longer ticket can need more.
+  - The failure path itself held: #13 closed with `outcome:failed` and KAN-2 went to Done, with the reason on both.
 - **A Spanish-speaking product owner reads "Listo" and "Finalizada"** where the card says Ready and Done. Column names are free text and are not translated, so the columns fix this on the board.
 
 ## Review (2026-10-20)
