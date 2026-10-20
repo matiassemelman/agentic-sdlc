@@ -33,3 +33,29 @@ jobs:
       - run: pnpm build
       - name: Design house rules (taste skill lint)
         run: node .claude/skills/design-taste-frontend/scripts/lint.mjs apps/hotel/app apps/hotel/components
+
+  # The workflows only run from main (the factory environment), so a broken one would show only after
+  # the merge: lint them here. And the repo is public: no private term may land in a file or a commit.
+  repo-checks:
+    name: Workflow lint, private terms
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Workflow lint (actionlint, pinned and checksum-verified)
+        env:
+          VERSION: 1.7.12
+          SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/actionlint_${VERSION}_linux_amd64.tar.gz"
+          echo "${SHA256}  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
+          tar xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+      - name: Private terms (files, and the messages of the new commits)
+        env:
+          PRIVATE_TERMS: ${{ vars.PRIVATE_TERMS }}
+          RANGE: ${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || format('{0}..{1}', github.event.before, github.sha) }}
+        run: scripts/check-private-terms.sh

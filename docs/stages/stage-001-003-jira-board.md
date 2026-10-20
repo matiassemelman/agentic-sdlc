@@ -15,7 +15,7 @@
   3. The relay holds the webhook secret and a fine-grained GitHub token: Actions write, this repository only, with an expiry.
   - No Jira automation: Free gives 150 steps a month, and a token stored in a rule can be redirected by anyone who can edit the rule.
 - **D6. The factory reads the board; it never trusts the message.** `board.yml` fetches the card's status and history from Jira and acts on those. A repeated or forged message changes nothing.
-- **D7. Identity:** the factory acts on the board as its own Atlassian account, "Factory", with a scoped API token (`read:jira-work`, `write:jira-work`) in the `factory` environment.
+- **D7. Identity:** the factory acts on the board as its own Atlassian account, "Factory", with a scoped API token in the `factory` environment. The token needs `read:jira-work`, `write:jira-work`, and `read:jira-user`; without the last scope, `/myself` answers 401 "scope does not match", and the factory cannot tell its own moves from a person's.
 - **D8. The spec on the board:**
   - It is posted as a comment on the card, with its SHA-256 and a link to the run issue.
   - Moving the card from Spec review to Build approves it, and moving it to Done rejects it.
@@ -67,6 +67,19 @@
   - `seed.ts` puts the prepared tickets in Backlog and adopts a run from before the board.
   - Unit tests run against an in-memory board and GitHub.
 - `board.yml` (the single entry) and `seed.yml` replace `order.yml` and `approval.yml`. Variables in the `factory` environment: `JIRA_CLOUD_ID`, `JIRA_SITE`, `JIRA_EMAIL`, `JIRA_PROJECT`.
+
+## Refinement (2026-10-20)
+- **The Factory account's language must be English.** Jira translates its built-in statuses (To Do, In Progress, Done) into the reader's language. It also translates a status reused from the site, as with Ready, which came back as "Listo". With a Spanish account, the API answered "Finalizada" and "Listo", and the seed found no Done or Ready.
+- **A status added to the Task workflow can reuse a site-wide status of the same name.** That is how Ready came with its translation.
+- **The editor's Replace only offers statuses outside the workflow.** Merging into one already there means deleting the old status instead.
+- **The column settings dialog failed to save several times.** The workflow editor (Space settings → Work types → Task → Edit workflow) worked.
+- **The token's scopes:** `/myself` needs `read:jira-user`. `node packages/stations/src/jira-scopes.ts` lists the scopes every call in `jira.ts` needs, read from the official spec; run it before asking for a token.
+- **Retro guardrails (2026-10-20):**
+  - `Seed board` checks the Task workflow and names the account's language when it explains missing statuses.
+  - Fast gates lint the workflows (`actionlint` 1.7.12 with shellcheck), since they only run from `main`.
+  - Fast gates fail on private terms in tracked files or new commit messages. The terms live in the `PRIVATE_TERMS` repository variable, never in the repo, and the log names only file:line.
+  - `scripts/show-spec.sh <n>` prints a run's spec without its data block.
+- **Seeded on 2026-10-20:** KAN-1 to KAN-3 in Backlog, and KAN-4 (run #8) in Spec review.
 
 ## Done when
 - A guest moves a prepared card to Ready and, without opening GitHub, sees the spec on the card within a minute.

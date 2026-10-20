@@ -4,9 +4,8 @@
 import { appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { STATUS } from "./board.ts";
 import { clients } from "./env.ts";
-import { adoptRun, seedPrepared } from "./seed.ts";
+import { adoptRun, checkBoard, seedPrepared } from "./seed.ts";
 
 const { values } = parseArgs({ options: { adopt: { type: "string" } } });
 const adopt = values.adopt ? Number(values.adopt) : undefined;
@@ -22,15 +21,11 @@ const report = (text: string) => {
 
 const { board, record, project } = clients();
 const me = await board.me();
-report(`### Seed board\n\nActing as ${me.displayName} (account id ${me.accountId}) on ${project}.`);
+report(`### Seed board\n\nActing as ${me.displayName} (account id ${me.accountId}, language ${me.locale ?? "unknown"}) on ${project}.`);
 
-const present = await board.statuses(project);
-const missing = Object.values(STATUS).filter((s) => !present.includes(s));
-if (missing.length) {
-  report(`The board lacks these statuses: ${missing.join(", ")}. It has: ${present.join(", ")}.`);
-  process.exit(1);
-}
-report("All ten statuses are there.");
+const check = checkBoard(await board.statusesByType(project), me.locale);
+report(check.report.join("\n\n"));
+if (!check.ok) process.exit(1);
 
 const root = resolve(import.meta.dirname, "../../..");
 const created = await seedPrepared({ root, board, project });

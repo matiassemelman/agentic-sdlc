@@ -16,6 +16,7 @@ A product owner moves a change to a demo hotel site to Ready on a Jira board, ap
 |---|---|
 | Lint, types, unit tests, build, design house rules | `.github/workflows/gates.yml`, on every PR |
 | E2E (Playwright: desktop, Android phone, 375px iPhone in WebKit) | `.github/workflows/e2e.yml`, on every preview deployment and on production |
+| Workflow lint (actionlint with shellcheck), private terms in files and new commit messages | `.github/workflows/gates.yml`, on every PR |
 
 ## The factory today
 

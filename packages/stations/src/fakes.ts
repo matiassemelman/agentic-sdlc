@@ -49,8 +49,8 @@ export class FakeBoard {
   async link(key: string, url: string) {
     this.cards.get(key)!.links.push(url);
   }
-  async statuses() {
-    return this.statusNames;
+  async statusesByType() {
+    return [{ type: "Task", subtask: false, statuses: this.statusNames }];
   }
   async create({ summary, labels }: { project: string; summary: string; labels: string[] }) {
     const key = `SD-${this.next++}`;
