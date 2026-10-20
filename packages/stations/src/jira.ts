@@ -10,6 +10,9 @@ export type CardComment = { id: string; author: string; created: string; updated
 type RawIssue = { key: string; fields: { summary: string; status: { name: string }; labels: string[]; created: string } };
 const FIELDS = "summary,status,labels,created";
 
+/** The work type the factory creates cards with. Team-managed spaces name it in the site's language. */
+export const CARD_TYPE = /^(task|tarea)$/i;
+
 const toCard = (issue: RawIssue): Card => ({
   key: issue.key,
   summary: issue.fields.summary,
@@ -54,8 +57,11 @@ export class Jira {
     });
   }
 
-  /** The account the token belongs to: the factory's own identity on the board. */
-  async me(): Promise<{ accountId: string; displayName: string }> {
+  /**
+   * The account the token belongs to: the factory's own identity on the board. Its locale matters:
+   * Jira translates built-in status names (Done, Ready) into the reader's language.
+   */
+  async me(): Promise<{ accountId: string; displayName: string; locale?: string }> {
     return this.call("reading the factory's account", "GET", "/myself");
   }
 
@@ -132,10 +138,14 @@ export class Jira {
     await this.call(`linking ${key}`, "POST", `/issue/${encodeURIComponent(key)}/remotelink`, { globalId: url, object: { url, title } });
   }
 
-  /** Every status the space's work types use, by name. */
-  async statuses(project: string): Promise<string[]> {
-    const types = await this.call<{ statuses: { name: string }[] }[]>(`reading the statuses of ${project}`, "GET", `/project/${encodeURIComponent(project)}/statuses`);
-    return [...new Set(types.flatMap((t) => t.statuses.map((s) => s.name)))];
+  /** Each work type of the space with the status names its workflow uses, as this account reads them. */
+  async statusesByType(project: string): Promise<{ type: string; subtask: boolean; statuses: string[] }[]> {
+    const types = await this.call<{ name: string; subtask: boolean; statuses: { name: string }[] }[]>(
+      `reading the statuses of ${project}`,
+      "GET",
+      `/project/${encodeURIComponent(project)}/statuses`,
+    );
+    return types.map((t) => ({ type: t.name, subtask: t.subtask, statuses: t.statuses.map((s) => s.name) }));
   }
 
   /** Creates a card in the space's first status (Backlog). Returns its key. */
@@ -146,9 +156,8 @@ export class Jira {
       "GET",
       `/issue/createmeta/${encodeURIComponent(project)}/issuetypes`,
     );
-    // Team-managed spaces name the standard type in the site's language (Task, Tarea, ...).
     const standard = (page.createMetaIssueType ?? page.issueTypes ?? []).filter((t) => !t.subtask && t.hierarchyLevel === 0);
-    const type = standard.find((t) => /^(task|tarea)$/i.test(t.name)) ?? standard[0];
+    const type = standard.find((t) => CARD_TYPE.test(t.name)) ?? standard[0];
     if (!type) throw new Error(`${project} has no standard work type to create cards with`);
     const created = await this.call<{ key: string }>(`creating a card in ${project}`, "POST", "/issue", {
       fields: { project: { key: project }, issuetype: { id: type.id }, summary, description, labels },

@@ -73,7 +73,12 @@
 - **A status added to the Task workflow can reuse a site-wide status of the same name.** That is how Ready came with its translation.
 - **The editor's Replace only offers statuses outside the workflow.** Merging into one already there means deleting the old status instead.
 - **The column settings dialog failed to save several times.** The workflow editor (Space settings → Work types → Task → Edit workflow) worked.
-- **The token's scopes:** `/myself` needs `read:jira-user`. The scopes for each endpoint are in the official spec (`swagger-v3.v3.json`, `x-atlassian-oauth2-scopes`).
+- **The token's scopes:** `/myself` needs `read:jira-user`. `node packages/stations/src/jira-scopes.ts` lists the scopes every call in `jira.ts` needs, read from the official spec; run it before asking for a token.
+- **Retro guardrails (2026-10-20):**
+  - `Seed board` checks the Task workflow and names the account's language when it explains missing statuses.
+  - Fast gates lint the workflows (`actionlint` 1.7.12 with shellcheck), since they only run from `main`.
+  - Fast gates fail on private terms in tracked files or new commit messages. The terms live in the `PRIVATE_TERMS` repository variable, never in the repo, and the log names only file:line.
+  - `scripts/show-spec.sh <n>` prints a run's spec without its data block.
 - **Seeded on 2026-10-20:** KAN-1 to KAN-3 in Backlog, and KAN-4 (run #8) in Spec review.
 
 ## Done when

@@ -5,7 +5,7 @@ import { reconcile } from "./factory.ts";
 import { FakeBoard, FakeRecord } from "./fakes.ts";
 import { exampleSpec } from "./fixtures.ts";
 import { renderSpecComment } from "./render.ts";
-import { adoptRun, seedPrepared } from "./seed.ts";
+import { adoptRun, checkBoard, seedPrepared } from "./seed.ts";
 
 const root = resolve(import.meta.dirname, "../../..");
 
@@ -36,5 +36,28 @@ describe("seeding the board", () => {
     const f = { root, project: "SD", board, record, call: async () => ({ output: null, tokens: envelope.meta.tokens, stopReason: null }), runUrl: "https://x" };
     await reconcile(f, key);
     expect(record.get(run.number).labels).toContain("station:build");
+  });
+
+  it("passes a Task workflow with all ten statuses", () => {
+    const board = new FakeBoard();
+    expect(checkBoard([{ type: "Task", subtask: false, statuses: board.statusNames }], "en_US")).toEqual({ ok: true, report: ["The Task workflow has all ten statuses."] });
+  });
+
+  it("says when the account's language is why statuses are missing", () => {
+    // What the board returned on 2026-10-20 to a factory account set to Spanish.
+    const seen = ["Acceptance", "Triage", "Build", "Merge", "Finalizada", "Listo", "Spec review", "Gates", "Backlog", "Spec"];
+    const check = checkBoard([{ type: "Task", subtask: false, statuses: seen }], "es_ES");
+    expect(check.ok).toBe(false);
+    expect(check.report[0]).toContain("reads Jira in es_ES");
+    expect(check.report[1]).toContain("lacks these statuses: Ready, Done");
+  });
+
+  it("checks the Task workflow, not statuses another work type uses", () => {
+    const board = new FakeBoard();
+    const check = checkBoard([
+      { type: "Epic", subtask: false, statuses: board.statusNames },
+      { type: "Task", subtask: false, statuses: board.statusNames.filter((s) => s !== "Ready") },
+    ]);
+    expect(check).toEqual({ ok: false, report: [expect.stringContaining("lacks these statuses: Ready")] });
   });
 });

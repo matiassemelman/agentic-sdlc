@@ -1,12 +1,29 @@
 import * as adf from "./adf.ts";
 import { STATUS, stationOf } from "./board.ts";
 import type { GitHub } from "./github.ts";
-import type { Jira } from "./jira.ts";
+import { CARD_TYPE, type Jira } from "./jira.ts";
 import { readSpecComment, specAdf } from "./render.ts";
 import { listTicketIds, loadTicket, type Ticket } from "./tickets.ts";
 
 type SeedBoard = Pick<Jira, "cardUrl" | "search" | "create" | "move" | "comment" | "link">;
 type SeedRecord = Pick<GitHub, "issue" | "comments" | "retitle" | "comment">;
+
+/**
+ * Whether the board can run the factory: the work type cards are made of uses all ten statuses by
+ * name. Jira translates its built-in statuses into the reader's language, so a factory account that
+ * reads Jira in another language misses some; the report says so instead of only listing them.
+ */
+export function checkBoard(types: { type: string; subtask: boolean; statuses: string[] }[], locale = ""): { ok: boolean; report: string[] } {
+  const card = types.find((t) => !t.subtask && CARD_TYPE.test(t.type));
+  if (!card) return { ok: false, report: [`The space has no Task work type. It has: ${types.map((t) => t.type).join(", ")}.`] };
+  const missing = Object.values(STATUS).filter((s) => !card.statuses.includes(s));
+  const report: string[] = [];
+  const english = !locale || locale.toLowerCase().startsWith("en");
+  if (!english) report.push(`The factory's account reads Jira in ${locale}, and Jira translates its built-in statuses for it. Set that account's language to English.`);
+  if (missing.length) report.push(`The ${card.type} workflow lacks these statuses: ${missing.join(", ")}. It has: ${card.statuses.join(", ")}.`);
+  else report.push(`The ${card.type} workflow has all ten statuses.`);
+  return { ok: missing.length === 0, report };
+}
 
 /** A prepared ticket's card: its text for people to read, and a note that agents read the repository's copy. */
 export function ticketCard(ticket: Ticket): { summary: string; description: adf.Adf; labels: string[] } {
