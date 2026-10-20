@@ -9,7 +9,7 @@
 ## Active Stage
 **STAGE-001-003:** The Jira board, with prepared tickets
 **File:** `docs/stages/stage-001-003-jira-board.md`
-**Phase:** Refinement: live test done; closing (columns, review, the listing-lag fix)
+**Phase:** Closing: PR #12 (listing lag, review fixes) waits for the merge and its live check
 
 ## Context
 - **Merged in PRs #9 and #10.** The board workflow `board.yml`, `seed.yml`, the relay `apps/factory`, the reordered epic and the retro guardrails (seed diagnostics, `actionlint`, the private-terms check, `jira-scopes.ts`, `show-spec.sh`) are on main.
@@ -26,9 +26,8 @@
 - **The private terms live in the `PRIVATE_TERMS` repository variable.** The `repo-checks` job reads them, and the file never names them.
 
 ## Next Action
-1. Matias: one more try at the board columns with his Atlassian language set to English (Ready and Done have no column; see the stage's Refinement). If it still fails, decide between the List view for guests and a company-managed project.
-2. Matias merges the closing PR from `stage-001-003-close-2`: the listing-lag fix and the review's fixes (68 tests).
-3. After the merge, the live check of the fix: dispatch `Board` (it should take KAN-2, which waits in Ready since KAN-1's rejection); edit KAN-2's spec on the card and move it to Build (the approval must be refused); move KAN-3 to Ready; reject KAN-2 (the same pass must take KAN-3). About $0.15.
-4. Mark the stage done in the epic and here.
-5. Invite the first guest product owner to Jira as a User (not site admin).
-6. Next stage: STAGE-001-004, build with self-verification. Design comes first, with Matias deciding.
+1. Matias merges the closing PR from `stage-001-003-close-2`: the listing-lag fix and the review's fixes (68 tests).
+2. After the merge, the live check of the fix: dispatch `Board` (it should take KAN-2, which waits in Ready since KAN-1's rejection); edit KAN-2's spec on the card and move it to Build (the approval must be refused); move KAN-3 to Ready; reject KAN-2 (the same pass must take KAN-3). About $0.15.
+3. Mark the stage done in the epic and here.
+4. Invite the first guest product owner to Jira as a User (not site admin).
+5. Next stage: STAGE-001-004, build with self-verification. Design comes first, with Matias deciding.

@@ -94,7 +94,10 @@
 - **Bug: the rejection's pass did not take the card waiting in Ready.** GitHub's issue list still showed #11 open right after the factory closed it, so the factory counted itself busy, and nothing woke it again. The unit test passed because the fakes are always consistent. Jira's JQL search has the same lag, and Atlassian documents it ([search and reconcile](https://developer.atlassian.com/cloud/jira/platform/search-and-reconcile/)).
   - Fix: `reconcile` lays the runs it wrote over GitHub's list (`own-writes.ts`), and `observe` reads every card again on its own, since a single card read is consistent.
   - The fakes can now freeze their listings. Two tests reproduce the lag, and each fails without its half of the fix.
-- **Ready and Done have no column on the board.** The statuses are in the workflow (ids 10011 and 10003), but no column shows them. With hidden statuses the board is in "Advanced" mode, where the board cannot add columns. The Configure columns dialog shows an error when saving, and Space settings has no Board page in the new interface. Until it is fixed, cards move to Ready and Done from the List view or the card's status. Creating a column there also creates a new status with its name: it must not be published, since two statuses named Done would break the lookup by name.
+- **Ready and Done had no column on the board. Fixed on 2026-10-20.** The statuses were in the workflow (ids 10011 and 10003), but hidden. That put the board in "Advanced" mode, where columns cannot be added from the board, and Space settings has no Board page in the new interface.
+  - The Configure columns dialog failed to save because a new column also creates a new status with the column's name, and "Done" and "Ready" clash with the statuses already there. The interface says only "Unable to save your settings".
+  - What worked: create the column, drag the existing status into it, remove the status the column created, and publish. With every status in its column, the board leaves Advanced mode.
+  - Checked through the API: 10 columns, Ready on 10011 and Done on 10003, and still 10 statuses.
 - **A Spanish-speaking product owner reads "Listo" and "Finalizada"** where the card says Ready and Done. Column names are free text and are not translated, so the columns fix this on the board.
 
 ## Review (2026-10-20)
