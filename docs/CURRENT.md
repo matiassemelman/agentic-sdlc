@@ -3,16 +3,16 @@
 **Updated:** 2026-10-20
 
 ## Active Epic
-**EPIC-001:** Factory v0, operated from GitHub
+**EPIC-001:** Factory v0, operated from the board
 **File:** `docs/epics/epic-001-factory-v0.md`
 
 ## Active Stage
-**STAGE-001-002:** Spec station and spec approval
-**File:** `docs/stages/stage-001-002-spec-station.md`
-**Phase:** Refinement (Matias tests)
+**STAGE-001-003:** The Jira board, with prepared tickets
+**File:** `docs/stages/stage-001-003-jira-board.md`
+**Phase:** Build done (2026-10-20); waiting for Matias's setup, then refinement
 
 ## Context
-Stage 1 closed on 2026-10-19 (review fixes in PR #2). Stage 2 is built: the 3 tickets, `packages/stations` (spec station, validator, renderer, admission; unit tests in the fast gates), the `write-spec` skill and the `Order a ticket` and `Spec approval` workflows. The `factory` environment exists and only `main` can use it. First real run on 2026-10-20 (#4): a valid spec in 24 s for $0.070; Matias rejected it because AC-4 checked text the change never shows. Refusal of a second order works. Refinement fixes are in the stage doc.
+Stage 2 ran for real on 2026-10-20. #4 was rejected (AC-4 checked text the change never shows; the skill was fixed in PR #5). #6 failed on a bad API key. #7 failed on a GitHub 502. #8 waits in `station:spec-approval` and will be approved from the board. The key now lives only in the `factory` environment. The Jira site exists, with the space `SDLC-demo` and its 10 columns.
 
 ## Next Action
-Matias moves the API key into the `factory` environment and deletes the repo secret (the key is still a repo secret), then merges the refinement PR. Then: order `guest-filter` again and, if the spec is right, approve it with `spec:approved`; check the issue moves to `station:build`.
+Matias: tell the space key (set as the `JIRA_PROJECT` variable), merge the stage 3 PR, create the Vercel project for `apps/factory` with its environment variables, create the fine-grained GitHub token, and add the Jira webhook. Then: run `Seed board` (adopting run #8), and approve #8 by moving its card to Build.

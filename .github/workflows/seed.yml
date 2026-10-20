@@ -1,0 +1,48 @@
+# Prepares the board: checks that its ten statuses exist and puts the prepared tickets in Backlog.
+# Optionally gives a run opened before the board (adopt) its card in Spec review.
+name: Seed board
+
+on:
+  workflow_dispatch:
+    inputs:
+      adopt:
+        description: Run issue number to give a card (optional)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: factory-board
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    name: Check the columns, add the prepared tickets
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: factory
+      deployment: false
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      ADOPT: ${{ inputs.adopt }}
+      JIRA_CLOUD_ID: ${{ vars.JIRA_CLOUD_ID }}
+      JIRA_SITE: ${{ vars.JIRA_SITE }}
+      JIRA_PROJECT: ${{ vars.JIRA_PROJECT }}
+      JIRA_EMAIL: ${{ vars.JIRA_EMAIL }}
+      JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter stations
+      - run: node packages/stations/src/run-seed.ts ${ADOPT:+--adopt "$ADOPT"}

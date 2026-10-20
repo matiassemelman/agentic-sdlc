@@ -4,7 +4,7 @@ Instructions for any coding agent (Claude Code, Cursor, Copilot, Gemini) working
 
 ## What this is
 
-`agentic-sdlc` is a small software factory. A visitor orders a ticket for a demo hotel app; agents write the spec and the code; gates and people decide what reaches production. Design: `docs/design.md`. Vocabulary: `GLOSSARY.md` (use its terms).
+`agentic-sdlc` is a small software factory. A product owner moves a ticket for a demo hotel app to Ready on a Jira board; agents write the spec and the code; gates and people decide what reaches production. Design: `docs/design.md`. Vocabulary: `GLOSSARY.md` (use its terms).
 
 ## Layout
 
@@ -13,8 +13,9 @@ Instructions for any coding agent (Claude Code, Cursor, Copilot, Gemini) working
   - `lib/`: pure logic, each module with a `*.test.ts` beside it.
   - `components/`, `app/`: the page.
   - `e2e/`: Playwright tests.
-- `packages/stations`: the factory's single-call stations (spec now; eval, review and tester later), run by GitHub Actions with Node 24. Agents do not change it during a run.
-- `tickets/`: the fixed tickets a run can start from. Agents do not change them.
+- `apps/factory`: the relay from the board's webhook to the `Board` workflow (the panel later). Agents do not change it.
+- `packages/stations`: the factory's stations and its board logic (spec now; eval, review and tester later), run by GitHub Actions with Node 24. Agents do not change it during a run.
+- `tickets/`: the prepared tickets a run can start from. Agents do not change them.
 - `.claude/skills/`: skills shared by local and cloud agents (`write-spec` is the spec station's instructions).
 - `docs/`: design, epics, stages, ADRs.
 

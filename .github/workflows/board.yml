@@ -1,0 +1,64 @@
+# The factory's single entry. The relay in apps/factory dispatches it whenever a card changes status on
+# the board. It reads the board and GitHub and brings them into line: it takes the next card from Ready,
+# writes its spec, and applies the product owner's approval or rejection. The key it gets is only a
+# hint; it never acts on what the message says, only on what Jira and GitHub show.
+name: Board
+
+on:
+  workflow_dispatch:
+    inputs:
+      key:
+        description: Card that changed (a hint; the whole board is checked)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+# One look at the board at a time. GitHub keeps only the newest waiting run per group, which is fine:
+# every run checks the whole board, so a skipped one loses nothing.
+concurrency:
+  group: factory-board
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: Bring the board and GitHub into line
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The API keys live in this environment, which only main can use.
+    environment:
+      name: factory
+      deployment: false
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      KEY: ${{ inputs.key }}
+      JIRA_CLOUD_ID: ${{ vars.JIRA_CLOUD_ID }}
+      JIRA_SITE: ${{ vars.JIRA_SITE }}
+      JIRA_PROJECT: ${{ vars.JIRA_PROJECT }}
+      JIRA_EMAIL: ${{ vars.JIRA_EMAIL }}
+      JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter stations
+      - name: Reconcile the board
+        run: node packages/stations/src/run-board.ts --key "$KEY" --out out
+      - name: Keep the spec envelopes (tokens, cost) for the run ledger
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: board-${{ github.run_id }}
+          path: out/envelope-*.json
+          if-no-files-found: ignore
+          retention-days: 90

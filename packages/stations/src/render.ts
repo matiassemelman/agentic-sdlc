@@ -1,9 +1,11 @@
+import * as adf from "./adf.ts";
 import { canonicalJson, sha256 } from "./hash.ts";
 import type { TokenCount } from "./prices.ts";
 import type { Spec } from "./spec.ts";
 import { validateSpec } from "./spec.ts";
 
-export type SpecMeta = { issue: number; ticket: string; model: string; tokens: TokenCount; costUsd: number; seconds: number };
+/** How a spec was made. `card` is the board card of the run; runs from before the board have none. */
+export type SpecMeta = { issue: number; card?: string; ticket: string; model: string; tokens: TokenCount; costUsd: number; seconds: number };
 /** What the spec comment carries: the spec and how it was made. The approval is bound to its hash. */
 export type Envelope = { version: 1; spec: Spec; meta: SpecMeta };
 
@@ -19,7 +21,6 @@ export function specHash(envelope: Envelope): string {
 /** The issue comment a person reads and approves. The same envelope always renders the same text. */
 export function renderSpecComment(envelope: Envelope): string {
   const { spec, meta } = envelope;
-  const t = meta.tokens;
   const sections = [
     `### Spec for #${meta.issue}: ${spec.title}`,
     spec.summary,
@@ -36,12 +37,53 @@ export function renderSpecComment(envelope: Envelope): string {
   sections.push("**Files likely to change**", bullets(spec.files.map((f) => `\`${f}\``)));
   sections.push(
     "---",
-    `<sub>Spec station · ${meta.model} · ${thousands(t.input + t.cacheWrite + t.cacheRead)} tokens in ` +
-      `(${thousands(t.cacheRead)} from cache) · ${thousands(t.output)} out · $${meta.costUsd.toFixed(3)} · ` +
-      `${Math.round(meta.seconds)} s. Approve with the label \`spec:approved\` or reject with \`spec:rejected\`.</sub>`,
+    `<sub>${stationLine(meta)}. ${howToDecide(meta)}</sub>`,
   );
   const data = Buffer.from(canonicalJson(envelope), "utf8").toString("base64");
   return `${sections.join("\n\n")}\n<!-- factory:spec v1 sha256=${specHash(envelope)} data=${data} -->`;
+}
+
+function howToDecide(meta: SpecMeta): string {
+  return meta.card
+    ? `Decide on the board: move ${meta.card} from Spec review to Build to approve it, or to Done to reject it.`
+    : "Approve with the label `spec:approved` or reject with `spec:rejected`.";
+}
+
+function stationLine(meta: SpecMeta): string {
+  const t = meta.tokens;
+  return (
+    `Spec station · ${meta.model} · ${thousands(t.input + t.cacheWrite + t.cacheRead)} tokens in (${thousands(t.cacheRead)} from cache) · ` +
+    `${thousands(t.output)} out · $${meta.costUsd.toFixed(3)} · ${Math.round(meta.seconds)} s`
+  );
+}
+
+/** The card shows this line; the approval reads it back to check the card shows the spec on the run issue. */
+export const SHOWN_SHA = /^Spec sha256: ([0-9a-f]{64})$/m;
+
+/** The same spec as a comment on the card, where the product owner reads and decides. */
+export function specAdf(envelope: Envelope, run: { url: string; number: number }): adf.Adf {
+  const { spec, meta } = envelope;
+  const { strong, text, inline, lineBreak } = adf;
+  const list = (items: string[]) => adf.bullets(items.map((item) => inline(item)));
+  const blocks: adf.Block[] = [
+    adf.heading(3, `Spec: ${spec.title}`),
+    adf.paragraph(inline(spec.summary)),
+    adf.heading(4, "Acceptance criteria"),
+    ...spec.criteria.map((c) =>
+      adf.paragraph(strong(c.id), text(` (${c.test})`), lineBreak, strong("Given "), inline(c.given), lineBreak, strong("When "), inline(c.when), lineBreak, strong("Then "), inline(c.then)),
+    ),
+  ];
+  if (spec.emptyStates.length) blocks.push(adf.heading(4, "Empty states"), adf.bullets(spec.emptyStates.map((s) => [...inline(s.when), ...text(": "), ...inline(s.show)])));
+  if (spec.assumptions.length) blocks.push(adf.heading(4, "Assumptions (the ticket does not say; approving the spec approves these)"), list(spec.assumptions));
+  if (spec.outOfScope.length) blocks.push(adf.heading(4, "Out of scope"), list(spec.outOfScope));
+  blocks.push(adf.heading(4, "Files likely to change"), adf.bullets(spec.files.map((f) => adf.code(f))));
+  blocks.push(
+    adf.rule,
+    adf.paragraph(strong("To approve this spec, move the card to Build. To reject it, move it to Done.")),
+    adf.paragraph(text(`${stationLine(meta)} · `), adf.link(`run #${run.number} on GitHub`, run.url)),
+    adf.paragraph(text(`Spec sha256: ${specHash(envelope)}`)),
+  );
+  return adf.doc(...blocks);
 }
 
 export type ReadResult = { ok: true; envelope: Envelope; sha256: string } | { ok: false; reason: string };
