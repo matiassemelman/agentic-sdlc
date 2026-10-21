@@ -49,7 +49,7 @@ describe("spec station", () => {
   it("returns an unclear spec's soft problems instead of failing, in a comment a person can approve", async () => {
     const { call } = fakeModel(unclearSpec());
     const { comment, soft } = await runSpecStation({ root, ticketId: "guest-filter", issue: 3, call });
-    expect(soft).toEqual(["assumptions has more than 8 items"]);
+    expect(soft).toEqual(["9 choices the ticket leaves open (the limit is 8)"]);
     expect(readSpecComment(comment).ok).toBe(true);
   });
 

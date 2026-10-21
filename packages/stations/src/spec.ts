@@ -94,8 +94,13 @@ export function validateSpec(spec: Spec): { hard: string[]; soft: string[] } {
     filled(s.when, `empty state ${i + 1} when`);
     filled(s.show, `empty state ${i + 1} show`);
   });
-  for (const [name, items] of [["assumptions", spec.assumptions], ["outOfScope", spec.outOfScope]] as const) {
-    if (items.length > LIMITS.items) soft.push(`${name} has more than ${LIMITS.items} items`);
+  // Soft problems go to a person as they are, so they read as plain words.
+  const lists = [
+    ["assumptions", spec.assumptions, "choices the ticket leaves open"],
+    ["outOfScope", spec.outOfScope, "things left out of scope"],
+  ] as const;
+  for (const [name, items, what] of lists) {
+    if (items.length > LIMITS.items) soft.push(`${items.length} ${what} (the limit is ${LIMITS.items})`);
     items.forEach((item, i) => filled(item, `${name} ${i + 1}`));
   }
 

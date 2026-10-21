@@ -21,7 +21,7 @@ describe("validateSpec", () => {
   it("counts too many assumptions or out-of-scope items as soft: a person may accept them", () => {
     const spec = unclearSpec();
     spec.outOfScope = Array.from({ length: 9 }, (_, i) => `Not ${i + 1}.`);
-    expect(validateSpec(spec)).toEqual({ hard: [], soft: ["assumptions has more than 8 items", "outOfScope has more than 8 items"] });
+    expect(validateSpec(spec)).toEqual({ hard: [], soft: ["9 choices the ticket leaves open (the limit is 8)", "9 things left out of scope (the limit is 8)"] });
   });
 
   it("requires criteria numbered AC-1, AC-2, ... in order", () => {

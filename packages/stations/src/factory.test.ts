@@ -60,11 +60,11 @@ describe("the factory on the board", () => {
     const [run] = record.issues;
     expect(run.labels).toEqual(["run", "ticket:guest-filter", "station:spec-approval"]);
     expect(run.comments.at(-1)!.body).toBe(
-      `The spec gate needs a person: assumptions has more than 8 items. Move ${guestFilter} to Build to approve the spec as it is, or to Done to reject it.`,
+      `The spec gate needs a person: 9 choices the ticket leaves open (the limit is 8). Move ${guestFilter} to Build to approve the spec as it is, or to Done to reject it.`,
     );
     const [shown, escalated] = board.notes(guestFilter).slice(-2);
     expect(shown).toContain("To approve this spec, move the card to Build. To reject it, move it to Done.");
-    expect(escalated).toBe("The spec gate needs a person: assumptions has more than 8 items. Move the card to Build to approve the spec as it is, or to Done to reject it.");
+    expect(escalated).toBe("The spec gate needs a person: 9 choices the ticket leaves open (the limit is 8). Move the card to Build to approve the spec as it is, or to Done to reject it.");
   });
 
   it("ends the run when the spec has a hard problem", async () => {
