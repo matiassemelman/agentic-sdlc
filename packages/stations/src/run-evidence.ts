@@ -55,11 +55,11 @@ function unitOutcomes(dir: string, label: string): Map<string, Outcome> {
 }
 
 /** On the base code, one browser is enough to see red; with the change, a desktop and a 375px phone, for the screenshots. */
-function e2eRun(dir: string, label: string, projects: string[]): { outcomes: Map<string, Outcome>; shots: Shot[] } {
+function e2eRun(dir: string, label: string, projects: string[], extra: string[] = []): { outcomes: Map<string, Outcome>; shots: Shot[] } {
   if (!e2es.length) return { outcomes: new Map(), shots: [] };
   const report = join(tmp, `playwright-${label}.json`);
   const files = e2es.map((f) => f.slice(HOTEL.length));
-  spawnSync("pnpm", ["exec", "playwright", "test", ...files, ...projects.flatMap((p) => ["--project", p]), "--grep", "AC-\\d+", "--reporter=json"], {
+  spawnSync("pnpm", ["exec", "playwright", "test", ...files, ...projects.flatMap((p) => ["--project", p]), "--grep", "AC-\\d+", "--reporter=json", ...extra], {
     cwd: join(dir, HOTEL),
     stdio: "inherit",
     env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_NAME: report, EVIDENCE: "1" },
@@ -90,7 +90,10 @@ if (tests.length) {
     git(baseDir, "checkout", "--", ".");
     git(baseDir, "clean", "-fdq", "--", HOTEL);
     copyIn(e2es);
-    base = merge(baseUnits, e2eRun(baseDir, "base", ["desktop"]).outcomes);
+    // On the base each criterion's test is meant to fail. CI's retry ran every failure twice, one at a time, each
+    // waiting out its timeout (212 s of run #19's 237 s): one try each, all at once. The test timeout stays: a
+    // shorter one could turn a slow hollow test red here and let it through.
+    base = merge(baseUnits, e2eRun(baseDir, "base", ["desktop"], ["--retries=0", "--fully-parallel", "--workers=5"]).outcomes);
   } finally {
     git(root, "worktree", "remove", "--force", baseDir);
   }
