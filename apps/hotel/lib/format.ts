@@ -13,3 +13,12 @@ export function formatPrice(amountEur: number, currency: Currency = "EUR"): stri
   const amount = currency === "USD" ? amountEur * USD_PER_EUR : amountEur;
   return formatters[currency].format(amount);
 }
+
+/**
+ * What each guest pays a night when the room is full, e.g. (210, 2) → "€105". The price is converted and
+ * divided before it is rounded, once, to a whole unit. A room for one guest has no price per guest: undefined.
+ */
+export function formatPricePerGuest(amountEur: number, maxGuests: number, currency: Currency = "EUR"): string | undefined {
+  if (maxGuests <= 1) return undefined;
+  return formatPrice(amountEur / maxGuests, currency);
+}

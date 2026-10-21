@@ -111,6 +111,8 @@ p { text-wrap: pretty; }
 .room__row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
 .room__name { font-size: var(--step-lead); line-height: 1.1; }
 .room__price { font-size: var(--step-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.room__prices { text-align: right; }
+.room__per-guest { font-size: var(--step-small); font-variant-numeric: tabular-nums; }
 .room__desc { margin-top: 10px; max-width: 34ch; }
 .room__facts { margin-top: 6px; font-size: var(--step-small); }
 
