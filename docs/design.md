@@ -1,6 +1,6 @@
 # agentic-sdlc — design
 
-A small-scale software factory, after Uber ("Efficient Software Factory", 2026) and Spotify ("Introducing Spotify Technology", 2026). The **Maintainer** (Matias) runs a design session that turns an idea for a demo hotel app into an epic of tickets in Ready. The factory carries each ticket to a verified pull request on its own: it writes the spec, builds, proves its own work, and passes gates that do not trust it. People decide only when the factory **escalates** on the card, and at the merge to production. Vocabulary: [`GLOSSARY.md`](../GLOSSARY.md).
+A small-scale software factory, after Uber ("Efficient Software Factory", 2026) and Spotify ("Introducing Spotify Technology", 2026). The **Maintainer** (Matias) runs a design session that turns an idea for a demo hotel app into an epic of tickets; one drag to Ready queues the whole epic. The factory carries each ticket to a verified pull request on its own: it writes the spec, builds, proves its own work, and passes gates that do not trust it. People decide only when the factory **escalates** on the card, and at the merge to production. Vocabulary: [`GLOSSARY.md`](../GLOSSARY.md).
 
 Agreed with Matias on 2026-10-15. Revised on 2026-10-20: people on the loop, not in it ([ADR 0001](adr/0001-people-on-the-loop.md)), with verification as the core of the demo.
 
@@ -8,7 +8,7 @@ Agreed with Matias on 2026-10-15. Revised on 2026-10-20: people on the loop, not
 
 | # | Station | Who | How | Practice it shows |
 |---|---|---|---|---|
-| 1 | Design session | Maintainer + agent | `/grill-with-docs` in Claude Code until the idea splits into clear tickets; a skill files the epic and its tickets in Ready | Spotify: judgment is the bottleneck, so people spend it on what to build |
+| 1 | Design session | Maintainer + agent | `/grill-with-docs` in Claude Code until the idea splits into clear tickets; the epic and its tickets go to Backlog, in order; moving one card to Ready queues the rest behind it | Spotify: judgment is the bottleneck, so people spend it on what to build |
 | 2 | Ticket | Factory | Pulls from Ready, oldest first, one run at a time. A ticket a guest writes waits for the Maintainer's triage first | Untrusted text never reaches an agent unread |
 | 3 | Spec | Opus 5.5 | One API call, Given/When/Then criteria | |
 | 4 | Spec gate | CI | Validation plus a policy: a clear spec goes on, an unclear one (too many assumptions, refused validation) escalates to the card, where a person approves it bound to its hash | People decide only where the evidence is weak |

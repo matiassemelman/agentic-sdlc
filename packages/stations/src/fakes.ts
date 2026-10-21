@@ -29,9 +29,10 @@ export class FakeBoard {
   }
   async search(jql: string) {
     const label = /labels = "([^"]+)"/.exec(jql)?.[1];
-    return (this.index ?? [...this.cards.values()].map((s) => s.card))
-      .filter((c) => (label ? c.labels.includes(label) && c.status !== STATUS.done : c.status !== STATUS.backlog && c.status !== STATUS.done))
-      .map((c) => ({ ...c }));
+    const parent = /parent = "([^"]+)"/.exec(jql)?.[1];
+    const matches = (c: Card) =>
+      parent ? c.parent === parent : label ? c.labels.includes(label) && c.status !== STATUS.done : c.status !== STATUS.backlog && c.status !== STATUS.done;
+    return (this.index ?? [...this.cards.values()].map((s) => s.card)).filter(matches).map((c) => ({ ...c }));
   }
   async moves(key: string) {
     return this.cards.get(key)!.moves.map((m) => ({ ...m }));

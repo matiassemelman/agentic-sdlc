@@ -1,5 +1,5 @@
 import * as adf from "./adf.ts";
-import { decide, gatesOf, GATES, STATUS, stationOf, type Action, type BoardState, type Observed, type Run, type RunPull } from "./board.ts";
+import { decide, gatesOf, GATES, startedBy, STATUS, stationOf, type Action, type BoardState, type Observed, type Run, type RunPull } from "./board.ts";
 import { branchFor } from "./build.ts";
 import type { GitHub } from "./github.ts";
 import { HttpError } from "./http.ts";
@@ -78,13 +78,25 @@ export async function observe(f: Factory, factory: string, hint?: string): Promi
     return active ? { ...card, moves: await f.board.moves(key) } : null;
   };
   const cards = (await Promise.all(keys.map(read))).filter((c): c is Observed => c !== null);
+  // The cards of each epic a person started, to queue the ones still in Backlog. The search only names them; each
+  // is read again on its own, so a card the factory just queued is not queued twice.
+  const epics = [...new Set(cards.flatMap((c) => (c.parent && startedBy(c, factory) ? [c.parent] : [])))];
+  const named = (await Promise.all(epics.map((epic) => f.board.search(`project = "${f.project}" AND parent = "${epic}" ORDER BY key ASC`)))).flat();
+  const children = (
+    await Promise.all(
+      named.map(async ({ key }): Promise<Observed | null> => {
+        const card = await f.board.card(key);
+        return card && { ...card, moves: await f.board.moves(key) };
+      }),
+    )
+  ).filter((c): c is Observed => c !== null);
   // A run past the build has a PR: whether it is merged, and its gates, decide where the run goes next.
   const pulls: Record<number, RunPull> = {};
   for (const run of runs.filter((r) => r.station === "station:gates" || r.station === "station:maintainer")) {
     const pull = await f.record.pull(branchFor(run));
     if (pull) pulls[run.number] = { ...pull, gates: pull.state === "open" ? gatesOf(await f.record.checks(pull.sha)) : { state: "pending", failed: [] } };
   }
-  return { runs, cards, factory, runsLast24h: recent.length, ticketIds: listTicketIds(f.root), hint, pulls };
+  return { runs, cards, factory, runsLast24h: recent.length, ticketIds: listTicketIds(f.root), hint, pulls, children };
 }
 
 /**
@@ -122,6 +134,8 @@ async function act(f: Factory, factory: string, action: Action): Promise<Envelop
       return approve(f, factory, action.run, action.card, action.by.byName, action.by.by);
     case "reject":
       return reject(f, action.run, action.card, action.by.byName);
+    case "queue":
+      return queue(f, action.card, action.behind);
     case "fail":
       return fail(f, action.run, action.card, action.reason);
     case "gatesPassed":
@@ -314,6 +328,13 @@ async function approve(f: Factory, factory: string, run: Run, card: Observed, wh
   await f.board.comment(card.key, note(adf.text(`Spec approved by ${who} (sha256 `), adf.code(sha.slice(0, 12)), adf.text("). Next station: build.")));
   f.log?.(`${card.key}: spec approved by ${who}`);
   await startBuild(f, run.number);
+}
+
+/** Moves a card of an epic to Ready behind the card a person moved there. The move goes first: it is the decision. */
+async function queue(f: Factory, card: Observed, behind: Observed): Promise<undefined> {
+  await f.board.move(card.key, STATUS.ready);
+  await f.board.comment(card.key, note(adf.text(`Queued behind ${behind.key}: moving one card of an epic to Ready queues the rest of it, in order. The factory takes this card when it is free; to keep it out, move it back to Backlog.`)));
+  f.log?.(`${card.key}: queued behind ${behind.key}`);
 }
 
 async function reject(f: Factory, run: Run, card: Observed, who: string): Promise<undefined> {
