@@ -10,9 +10,8 @@ Lookups that cost more than one call to find. Run the commands from the reposito
 
 - **A card to Ready, as a person:** the Atlassian MCP acts as Matias, so its moves wake the factory the way a person's do (the relay drops the Factory account's own moves). The transitions keep the names of Jira's old statuses:
   - `To Do` (id 11) leads to Backlog;
-  - `In Progress` (id 21) leads to Triage;
   - `In Review` (id 31) leads to Ready;
-  - the others are named after their status (`Spec review`, `Build`, `Gates`, `Acceptance`, `Merge`, `Spec`, `Done`).
+  - the others are named after their status (`Spec review`, `Build`, `Gates`, `Merge`, `Spec`, `Done`). Triage and Acceptance were removed on 2026-10-21.
 - **Retry an escalated build** (retries come in STAGE-001-009): `gh issue edit <n> --remove-label escalated`, then `gh workflow run build.yml -f run=<n>`. `prepare` builds a run only when it is at the build station, not escalated, approved for its hash and without a PR.
 
 ## When the factory needs a person

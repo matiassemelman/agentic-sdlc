@@ -37,7 +37,7 @@ lines=$(awk -F'\t' '
     line = substr($3, index($3, " ") + 1)
     if (line ~ /^##\[group\]/) { skip = 1; next }
     if (line ~ /^##\[endgroup\]/) { skip = 0; next }
-    if (!skip && (line ~ /^(run #[0-9]+|[A-Z][A-Z0-9]*-[0-9]+): / || line ~ /^Stopped: / || line ~ /^\| AC-[0-9]+ / || line ~ /##\[error\]/)) print line
+    if (!skip && (line ~ /^(run #[0-9]+|[A-Z][A-Z0-9]*-[0-9]+)[: ]/ || line ~ /^Stopped: / || line ~ /^\| AC-[0-9]+ / || line ~ /##\[error\]/)) print line
   }' <<<"$log")
 if [ -n "$lines" ]; then echo "$lines"; else echo "(no factory log lines: nothing to do, or the run stopped before the factory steps)"; fi
 [ "$conclusion" = success ]

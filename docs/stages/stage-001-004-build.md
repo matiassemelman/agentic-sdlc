@@ -84,9 +84,12 @@ Measured, not assumed: the fast gates take 39 s, so the time is in the build.
 | The build agent | 801 / 819 s | 447 s (43 turns, $0.12; model 229 s, tools 218 s) |
 | The factory's evidence | 232 / 237 s | 44 s |
 
+The same ticket, KAN-4, after every fix: Haiku's second build ran out of its 80 turns polling a background task (28 `Monitor` calls; model 319 s of 348 s). Sonnet 5.5 at high effort: **build job 285 s**, agent 147 s (37 turns, $0.32; model 93 s, tools 54 s), evidence 31 s, and PR #29. On this ticket Sonnet needed fewer turns and less model time than Haiku, so the executor stays Sonnet.
+
 - The evidence's base spent 212 of 237 s on five tests meant to fail, in one worker, each retried and waiting out a click on a missing button. Now: `--retries=0 --fully-parallel --workers=5` on the base, and `actionTimeout` 5 s in the hotel's Playwright config (PR #25).
 - The two runs differ in ticket and model, and the agent ran the faster evidence too (6 times), so the agent's drop is not Haiku's alone.
 - Run #27 escalated: `AGENTS.md` tells the agent to run `pnpm --filter hotel e2e`, and its allowed tools refused it. Haiku stopped and asked instead of working around it. Fixed, with a test that every gate in `AGENTS.md` is an allowed tool (PR #28).
+- The rehearsal of the live run (KAN-4, run #27) went through every column: the gates passed on PR #29, the card moved to Merge and was assigned to the Maintainer, and the PR was closed unmerged on purpose; the run failed with "PR #29 was closed without a merge" and the card went to Done. The Vercel preview and its E2E run for the factory's PRs too.
 - The same PR protects `apps/hotel/AGENTS.md` and the hotel's test configs: the agent may not change its own rules or the harness that judges it, and `AGENTS.md` and `implement-ticket` say so.
 
 ## The board finishes by itself (2026-10-21)
