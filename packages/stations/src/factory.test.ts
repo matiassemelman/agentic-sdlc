@@ -257,10 +257,11 @@ describe("the factory on the board", () => {
 });
 
 describe("after the build: the gates, the Maintainer, the merge", () => {
-  const passing = [
+  const fast = [
     { name: "Lint, types, unit, build, design", status: "completed", conclusion: "success" },
     { name: "Workflow lint, private terms", status: "completed", conclusion: "success" },
   ];
+  const passing = [...fast, { name: "E2E on Preview – hotel-mirador", status: "completed", conclusion: "success" }];
 
   /** A run the build station published: PR #42 open, the run at the gates, its card in Gates. */
   async function published(checks: { name: string; status: string; conclusion: string | null }[]) {
@@ -277,8 +278,32 @@ describe("after the build: the gates, the Maintainer, the merge", () => {
     return { ...s, run, pull };
   }
 
+  it("waits for the E2E run on the preview, though the fast gates passed", async () => {
+    const { f, board, guestFilter } = await published(fast);
+    await reconcile(f);
+    expect(board.status(guestFilter)).toBe(STATUS.gates);
+  });
+
+  it("still moves the card and assigns the Maintainer when the move failed once", async () => {
+    const { f, board, record, run, guestFilter } = await published(passing);
+    const move = board.move.bind(board);
+    let failedOnce = false;
+    board.move = async (key: string, status: string) => {
+      if (status === STATUS.merge && !failedOnce) {
+        failedOnce = true;
+        throw new HttpError("Jira", 503, `moving ${key} to ${status}`, "");
+      }
+      return move(key, status);
+    };
+    await expect(reconcile(f)).rejects.toThrow("Jira returned 503");
+    await reconcile(f);
+    expect(board.status(guestFilter)).toBe(STATUS.merge);
+    expect(board.assignee(guestFilter)).toBe("maintainer-id");
+    expect(record.get(run.number).comments.filter((c) => c.body.includes("factory:gates-passed"))).toHaveLength(1);
+  });
+
   it("waits while a gate is still running", async () => {
-    const { f, board, run, guestFilter } = await published([passing[0], { ...passing[1], status: "in_progress", conclusion: null }]);
+    const { f, board, run, guestFilter } = await published([passing[0], { ...passing[1], status: "in_progress", conclusion: null }, passing[2]]);
     await reconcile(f);
     expect(board.status(guestFilter)).toBe(STATUS.gates);
     expect(run.labels).toContain("station:gates");
@@ -304,7 +329,7 @@ describe("after the build: the gates, the Maintainer, the merge", () => {
   });
 
   it("escalates once when a gate fails, with the card in Gates and assigned to the Maintainer", async () => {
-    const { f, board, record, run, guestFilter } = await published([passing[0], { ...passing[1], conclusion: "failure" }]);
+    const { f, board, record, run, guestFilter } = await published([passing[0], { ...passing[1], conclusion: "failure" }, passing[2]]);
     record.freezeListing();
     await reconcile(f);
     await reconcile(f);
@@ -329,13 +354,30 @@ describe("after the build: the gates, the Maintainer, the merge", () => {
     expect(board.status(stayTotal)).toBe(STATUS.build);
   });
 
-  it("ends the run when its PR is closed without a merge", async () => {
+  it("ends the run once when its PR is closed without a merge, though GitHub's list still shows it open", async () => {
     const { f, board, record, run, pull, guestFilter } = await published(passing);
     record.pullsByBranch.set(`run/${run.number}-filter-rooms-by-number-of-guests`, { ...pull, state: "closed" });
+    record.freezeListing();
     await reconcile(f);
+    await reconcile(f);
+    expect(record.get(run.number).comments.filter((c) => c.body.startsWith("The run stops here"))).toHaveLength(1);
+    expect(board.notes(guestFilter).filter((n) => n.startsWith(`Run #${run.number} stopped`))).toHaveLength(1);
     expect(record.get(run.number).labels).toContain("outcome:failed");
     expect(board.status(guestFilter)).toBe(STATUS.done);
     expect(board.notes(guestFilter).at(-1)).toContain("PR #42 was closed without a merge.");
+  });
+
+  it("keeps the run going when the card cannot be assigned: a notice never stops the factory", async () => {
+    const { f, board, record, guestFilter } = await setup(unclear);
+    f.maintainer = "nobody";
+    board.assign = async () => {
+      throw new HttpError("Jira", 400, "assigning the card", "user cannot be assigned");
+    };
+    board.drag(guestFilter, STATUS.ready);
+    await reconcile(f, guestFilter);
+    expect(board.status(guestFilter)).toBe(STATUS.specReview);
+    expect(record.issues[0].labels).toContain("station:spec-approval");
+    expect(record.issues[0].open).toBe(true);
   });
 
   it("assigns the Maintainer a spec the spec gate sends to a person", async () => {

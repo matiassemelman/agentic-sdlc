@@ -33,5 +33,7 @@ describe("where the build agent's time went", () => {
     expect(commandName("node .claude/skills/design-taste-frontend/scripts/lint.mjs apps/hotel/app")).toBe("design lint");
     expect(commandName("pnpm --filter hotel exec vitest run lib/format.test.ts")).toBe("vitest");
     expect(commandName("git diff --stat")).toBe("git diff");
+    expect(commandName("pnpm --filter hotel e2e")).toBe("pnpm --filter hotel e2e");
+    expect(commandName("pnpm --filter hotel test:unit -- --run")).toBe("pnpm --filter hotel test:unit");
   });
 });

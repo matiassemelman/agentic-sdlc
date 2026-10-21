@@ -34,16 +34,20 @@ const WAITING_FOR: Record<string, string> = {
   "station:maintainer": "The change waits for the Maintainer to review and merge its PR; the card moves to Done by itself.",
 };
 
-/** The checks a factory PR must pass before it waits for the Maintainer, by their names on GitHub. */
-export const GATES = ["Lint, types, unit, build, design", "Workflow lint, private terms"];
+/**
+ * The checks a factory PR must pass before it waits for the Maintainer, by their names on GitHub: the fast gates,
+ * and the E2E run on the PR's Vercel preview (its name goes on with the environment, "E2E on Preview – hotel-mirador").
+ */
+export const GATES = ["Lint, types, unit, build, design", "Workflow lint, private terms", "E2E on Preview"];
+const isGate = (gate: string, check: Check) => check.name === gate || check.name.startsWith(`${gate} `);
 
 export type Gates = { state: "pending" | "passed" | "failed"; failed: string[] };
 
 /** Whether a commit passed the gates: each one finished with success. A missing or running gate is pending. */
 export function gatesOf(checks: Check[]): Gates {
-  const failed = GATES.filter((name) => checks.some((c) => c.name === name && c.status === "completed" && c.conclusion !== "success"));
+  const failed = GATES.filter((gate) => checks.some((c) => isGate(gate, c) && c.status === "completed" && c.conclusion !== "success"));
   if (failed.length) return { state: "failed", failed };
-  const passed = GATES.every((name) => checks.some((c) => c.name === name && c.status === "completed" && c.conclusion === "success"));
+  const passed = GATES.every((gate) => checks.some((c) => isGate(gate, c) && c.status === "completed" && c.conclusion === "success"));
   return { state: passed ? "passed" : "pending", failed: [] };
 }
 

@@ -86,7 +86,8 @@ const push: Push = {
     // main's, so the change goes on top of main as it is now; a conflict there goes to a person.
     remoteGit(["fetch", "-q", remote, "main"]);
     remoteGit([...author, "rebase", "-q", "FETCH_HEAD"]);
-    remoteGit(["push", "-q", remote, `HEAD:refs/heads/${branch}`]);
+    // --force: the branch is the factory's own, and a rebuild after a failed publish replaces it.
+    remoteGit(["push", "-q", "--force", remote, `HEAD:refs/heads/${branch}`]);
   },
   // Screenshots live on their own branch, so a PR comment can show them and the change carries none.
   async evidence(folder) {

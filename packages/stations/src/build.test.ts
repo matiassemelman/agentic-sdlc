@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { STATUS } from "./board.ts";
-import { branchFor, changedFiles, gitFailure, judgeBuild, PROTECTED, prepareBuild, publishBuild, type Built } from "./build.ts";
+import { branchFor, changedFiles, gitFailure, judgeBuild, WRITABLE, prepareBuild, publishBuild, type Built } from "./build.ts";
 import { reconcile } from "./factory.ts";
 import { FakeBoard, FakeRecord, stamp } from "./fakes.ts";
 import { exampleSpec, unclearSpec } from "./fixtures.ts";
@@ -111,7 +111,7 @@ describe("the build station", () => {
     expect(opened).toEqual([]);
     expect(record.issues[0].labels).toEqual(expect.arrayContaining(["station:build", "escalated"]));
     expect(board.status(card)).toBe(STATUS.build);
-    expect(board.notes(card).at(-1)).toContain("The build needs a person: the build changed files only the factory changes (outside apps/hotel/");
+    expect(board.notes(card).at(-1)).toContain("The build needs a person: the build changed files only the factory changes (the agent writes only in apps/hotel/app/");
     expect(board.notes(card).at(-1)).toContain("package.json");
   });
 });
@@ -154,6 +154,17 @@ describe("a failed push, as a person reads it", () => {
     expect(said).not.toContain(secret);
   });
 
+  it("says the branch is on GitHub when only the evidence failed to publish", async () => {
+    const { record, board, run, pulls, d, card, opened } = await approvedRun();
+    const ready = await prepareBuild(record, pulls, run.number);
+    if (!ready.go) throw new Error(ready.reason);
+    const failing = { ...d, push: { ...d.push, evidence: async () => Promise.reject(new Error("git push failed: ! [remote rejected] HEAD -> evidence")) } };
+    await publishBuild(failing, { run: ready.run, branch: ready.branch, sha256: ready.sha256, built: { finished: true, changed: ["apps/hotel/lib/rooms.ts"], evidence: green } });
+    expect(opened).toEqual([]);
+    expect(board.notes(card).at(-1)).toContain(`the change is on ${ready.branch}, but its evidence could not be published`);
+    expect(board.notes(card).at(-1)).not.toContain("nothing was published");
+  });
+
   it("escalates a push that fails, with git's reason on the card", async () => {
     const { record, board, run, pulls, d, card } = await approvedRun();
     const ready = await prepareBuild(record, pulls, run.number);
@@ -171,18 +182,24 @@ describe("a failed push, as a person reads it", () => {
 describe("what the build agent may change, and run", () => {
   const read = (path: string) => readFileSync(join(root, path), "utf8");
 
+  it("publishes changes in the hotel's code, tests, data and pictures", () => {
+    const changed = ["apps/hotel/app/page.tsx", "apps/hotel/components/RoomList.tsx", "apps/hotel/lib/rooms.ts", "apps/hotel/e2e/guests.spec.ts", "apps/hotel/data/rooms.json", "apps/hotel/images/x.jpg"];
+    expect(judgeBuild({ finished: true, changed, evidence: green })).toEqual({ publish: true, draft: false });
+  });
+
   it("refuses a change to the agent's own rules or to the harness that judges it", () => {
-    for (const file of ["apps/hotel/AGENTS.md", "apps/hotel/playwright.config.ts", "apps/hotel/vitest.config.ts"]) {
+    const harness = ["AGENTS.md", "playwright.config.ts", "vitest.config.ts", "package.json", "tsconfig.json", "eslint.config.mjs", "next.config.ts"];
+    for (const file of harness.map((f) => `apps/hotel/${f}`)) {
       const verdict = judgeBuild({ finished: true, changed: ["apps/hotel/lib/rooms.ts", file], evidence: green });
       expect(verdict).toMatchObject({ publish: false });
       expect(verdict.reason).toContain(file);
     }
   });
 
-  it("tells the agent every file it may not change, where it reads its rules", () => {
-    for (const file of PROTECTED) {
-      expect(read("AGENTS.md")).toContain(file);
-      expect(read(".claude/skills/implement-ticket/SKILL.md")).toContain(file);
+  it("tells the agent where it may write, where it reads its rules", () => {
+    for (const dir of WRITABLE.map((d) => `\`${d.slice("apps/hotel/".length)}\``)) {
+      expect(read("AGENTS.md")).toContain(dir);
+      expect(read(".claude/skills/implement-ticket/SKILL.md")).toContain(dir);
     }
   });
 

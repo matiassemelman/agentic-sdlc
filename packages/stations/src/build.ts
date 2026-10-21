@@ -14,8 +14,11 @@ export type Push = { change(branch: string, message: string): Promise<void>; evi
 const BOT = "github-actions[bot]";
 const SPEC_MARKER = "<!-- factory:spec v1";
 const HOTEL = "apps/hotel/";
-/** Files inside the hotel that only the factory changes: the agent's own rules, and the harness that judges its work. */
-export const PROTECTED = ["apps/hotel/AGENTS.md", "apps/hotel/playwright.config.ts", "apps/hotel/vitest.config.ts"];
+/**
+ * Where the build agent may write: the hotel's code, tests, data and pictures. The rest of the hotel (its agent
+ * rules, package.json and every config the gates run with) is the harness that judges the agent, and the factory's.
+ */
+export const WRITABLE = ["app/", "components/", "lib/", "e2e/", "data/", "images/"].map((dir) => `${HOTEL}${dir}`);
 const note = (...parts: (adf.Inline | adf.Inline[])[]) => adf.doc(adf.paragraph(...parts));
 
 /** The branch a run's change goes on, as in `run/16-total-price-of-a-stay`. */
@@ -86,9 +89,9 @@ export function gitFailure(error: unknown, secret: string): string {
 export function judgeBuild(built: Built): { publish: false; reason: string } | { publish: true; draft: boolean; reason?: string } {
   if (built.blocked?.trim()) return { publish: false, reason: `the build agent stopped and asks:\n\n${built.blocked.trim()}` };
   if (!built.finished) return { publish: false, reason: "the build agent did not finish (its step failed or ran out of turns). Nothing was published." };
-  const outside = built.changed.filter((f) => !f.startsWith(HOTEL) || PROTECTED.includes(f));
+  const outside = built.changed.filter((f) => !WRITABLE.some((dir) => f.startsWith(dir)));
   if (outside.length)
-    return { publish: false, reason: `the build changed files only the factory changes (outside ${HOTEL}, or the hotel's agent rules and test configs): ${outside.join(", ")}. Nothing was published.` };
+    return { publish: false, reason: `the build changed files only the factory changes (the agent writes only in ${WRITABLE.join(", ")}): ${outside.join(", ")}. Nothing was published.` };
   if (!built.changed.length) return { publish: false, reason: `the build agent left no change in ${HOTEL}.` };
   if (!built.evidence.ok) return { publish: true, draft: true, reason: `the evidence is not green, so the PR is a draft:\n${built.evidence.problems.map((p) => `- ${p}`).join("\n")}` };
   return { publish: true, draft: false };
@@ -108,16 +111,23 @@ export async function publishBuild(
     await d.record.comment(run.number, `The build needs a person: ${reason}\n\n[Workflow run](${d.runUrl})`);
     await d.record.relabel(run.number, { add: ["escalated"] });
     if (card) await d.board.comment(card, note(adf.text(`The build needs a person: ${reason} `), adf.link("Workflow run", d.runUrl)));
-    if (card && d.maintainer) await d.board.assign(card, d.maintainer);
+    // A notice that fails is logged: the comments already say the build waits for a person.
+    if (card && d.maintainer) await d.board.assign(card, d.maintainer).catch((error) => d.log?.(`${card}: could not assign the card to the Maintainer (${String(error)})`));
     d.log?.(`run #${run.number}: escalated (${reason.split("\n")[0]})`);
   };
   if (!verdict.publish) return ask(verdict.reason);
 
+  const said = (error: unknown) => (error instanceof Error ? error.message : String(error));
   try {
     await d.push.change(branch, `${run.title}\n\nRun #${run.number}, built from the spec with sha256 ${sha256}.`);
+  } catch (error) {
+    return ask(`publishing the change failed, so nothing was published:\n\n${said(error)}`);
+  }
+  try {
     await d.push.evidence(`run-${run.number}`);
   } catch (error) {
-    return ask(`publishing the change failed, so nothing was published:\n\n${error instanceof Error ? error.message : String(error)}`);
+    // A rebuild pushes the branch again with --force, so this run can still be built.
+    return ask(`the change is on ${branch}, but its evidence could not be published, so no PR was opened:\n\n${said(error)}`);
   }
   const cardLink = card ? ` · [${card}](${d.board.cardUrl(card)})` : "";
   const pr = await d.pulls.openPull({

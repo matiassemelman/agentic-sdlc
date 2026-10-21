@@ -1,5 +1,5 @@
 # The factory's single entry. The relay in apps/factory dispatches it whenever a card changes status on
-# the board, and GitHub starts it when a PR's gates finish and when main changes (a merge). It reads the
+# the board, and GitHub starts it when a PR's gates (the fast gates, the E2E run) finish and when main changes (a merge). It reads the
 # board and GitHub and brings them into line: it takes the next card from Ready, writes its spec, applies
 # the product owner's approval or rejection, moves a PR that passed its gates to the Maintainer, and closes
 # the run when its PR is merged. The key it gets is only a hint; it never acts on what an event says, only
@@ -15,7 +15,7 @@ on:
         type: string
   # Runs from main with main's code; it reads only the gates' results, never the PR's code.
   workflow_run:
-    workflows: [Fast gates]
+    workflows: [Fast gates, E2E]
     types: [completed]
   push:
     branches: [main]

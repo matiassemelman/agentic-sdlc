@@ -24,7 +24,9 @@ export function commandName(command: string): string {
   if (/design-taste-frontend\/scripts\/lint\.mjs/.test(command)) return "design lint";
   if (/playwright test/.test(command)) return "playwright test";
   if (/vitest/.test(command)) return "vitest";
-  return command.trim().split(/\s+/).slice(0, 2).join(" ");
+  const words = command.trim().split(/\s+/);
+  // `pnpm --filter <package> <script>` names the package and the script, as in `pnpm --filter hotel e2e`.
+  return words.slice(0, words[0] === "pnpm" && words[1] === "--filter" ? 4 : 2).join(" ");
 }
 
 /** The agent's run in two or three lines: total, model and tool time, cost, and what it ran how often. */
