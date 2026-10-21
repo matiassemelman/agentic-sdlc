@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { STATUS } from "./board.ts";
-import { branchFor, changedFiles, judgeBuild, prepareBuild, publishBuild, type Built } from "./build.ts";
+import { branchFor, changedFiles, gitFailure, judgeBuild, prepareBuild, publishBuild, type Built } from "./build.ts";
 import { reconcile } from "./factory.ts";
 import { FakeBoard, FakeRecord, stamp } from "./fakes.ts";
 import { exampleSpec, unclearSpec } from "./fixtures.ts";
@@ -134,5 +134,35 @@ describe("the files a build changed", () => {
       "apps/hotel/new.ts",
       "apps/hotel/renamed.ts",
     ]);
+  });
+});
+
+describe("a failed push, as a person reads it", () => {
+  it("keeps git's own error and leaves out the URL with the token", () => {
+    // Node's error message holds the whole command, push URL and token included; only git's lines may be posted.
+    const secret = "ghs_SECRETtoken123";
+    let error: unknown;
+    try {
+      execFileSync("git", ["push", "-q", `https://x-access-token:${secret}@127.0.0.1:9/nowhere.git`, "HEAD:refs/heads/x"], { cwd: mkdtempSync(join(tmpdir(), "push-")), encoding: "utf8", stdio: "pipe" });
+    } catch (caught) {
+      error = caught;
+    }
+    expect(String(error)).toContain(secret);
+    const said = gitFailure(error, secret);
+    expect(said).toMatch(/^fatal: /);
+    expect(said).not.toContain(secret);
+  });
+
+  it("escalates a push that fails, with git's reason on the card", async () => {
+    const { record, board, run, pulls, d, card } = await approvedRun();
+    const ready = await prepareBuild(record, pulls, run.number);
+    if (!ready.go) throw new Error(ready.reason);
+    const refused = " ! [remote rejected] HEAD -> run/x (refusing to allow a GitHub App to create or update workflow `.github/workflows/board.yml` without `workflows` permission)";
+    const failing = { ...d, maintainer: "maintainer-id", push: { ...d.push, change: async () => Promise.reject(new Error(`git push failed: ${refused}`)) } };
+    await publishBuild(failing, { run: ready.run, branch: ready.branch, sha256: ready.sha256, built: { finished: true, changed: ["apps/hotel/lib/rooms.ts"], evidence: green } });
+    expect(record.get(run.number).labels).toContain("escalated");
+    expect(board.notes(card).at(-1)).toContain("publishing the change failed");
+    expect(board.notes(card).at(-1)).toContain("without `workflows` permission");
+    expect(board.assignee(card)).toBe("maintainer-id");
   });
 });
