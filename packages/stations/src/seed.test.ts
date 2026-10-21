@@ -38,9 +38,9 @@ describe("seeding the board", () => {
     expect(record.get(run.number).labels).toContain("station:build");
   });
 
-  it("passes a Task workflow with all ten statuses", () => {
+  it("passes a Task workflow with every status the factory uses", () => {
     const board = new FakeBoard();
-    expect(checkBoard([{ type: "Task", subtask: false, statuses: board.statusNames }], "en_US")).toEqual({ ok: true, report: ["The Task workflow has all ten statuses."] });
+    expect(checkBoard([{ type: "Task", subtask: false, statuses: board.statusNames }], "en_US")).toEqual({ ok: true, report: ["The Task workflow has all 8 statuses."] });
   });
 
   it("says when the account's language is why statuses are missing", () => {

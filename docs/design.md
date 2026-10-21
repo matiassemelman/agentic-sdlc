@@ -35,7 +35,7 @@ Rooms come from a JSON file in the repo.
 
 - Monorepo, two Vercel projects: `apps/hotel` (the only path the agent may change) and `apps/factory` (the panel).
 - Orchestration: GitHub Actions + `anthropics/claude-code-action` with Matias's own API key (subscription credentials may not serve other users). Single-shot stations call the Messages API directly.
-- People watch the board and answer escalations there: a Jira kanban whose ten columns are the stations and queues (`Backlog → Triage → Ready → Spec → Spec review → Build → Gates → Acceptance → Merge → Done`; Spec review and Acceptance are revisited in STAGE-001-004, now that a person reaches them only on escalation). The factory works on GitHub: each run is an issue whose labels and comments are its record. Each side writes only its own data.
+- People watch the board and answer escalations there: a Jira kanban whose eight columns are the stations and queues (`Backlog → Ready → Spec → Spec review → Build → Gates → Merge → Done`). Spec review holds only a spec the spec gate escalates. Triage and Acceptance were dropped on 2026-10-21: nothing used them; Triage comes back with the tickets a guest writes (STAGE-001-013). The factory works on GitHub: each run is an issue whose labels and comments are its record. Each side writes only its own data.
 - From the board to GitHub: a signed Jira webhook → a relay in `apps/factory` (Vercel) → the `Board` workflow (`workflow_dispatch`). The workflow reads the board and GitHub and brings them into line (reconciliation), so a lost, repeated or forged message changes nothing. No Jira automation: Free allows 150 steps a month.
 - The panel (v1) reads GitHub through one server route cached for 5 s, shared by every viewer.
 - Context: `AGENTS.md` (tool-agnostic; Cursor, Copilot and Gemini read it too), skills versioned in the repo (`write-spec`, `implement-ticket`, `verify`), specs and ADRs as memory.
@@ -50,7 +50,7 @@ Rooms come from a JSON file in the repo.
 ## Security
 
 - Prepared tickets: the factory reads their text from `tickets/`, never from the card, because on Jira Free every user administers every space and can edit any card. Guests are invited as Jira users (Free has no public access); `Reset demo` restores the board.
-- One run at a time; at most 10 runs a day; USD 18 monthly spend limit in the Anthropic console.
+- One run at a time; at most 20 runs a day (10 until 2026-10-21, when the live tests used nine); USD 18 monthly spend limit in the Anthropic console.
 - Agent token: branches and PRs only. `main` protected: required gates + Maintainer review via `CODEOWNERS`. No production secrets reachable by the agent.
 - The Anthropic API key and the Factory account's Jira token live in the GitHub environment `factory`, which only `main` may use. Workflows that run pull-request code (e2e on previews) get no secrets. The relay holds only the webhook secret and a GitHub token that can dispatch workflows on this repository.
 - A person's approval of an escalated spec is bound to the spec's SHA-256: it counts only if the run issue holds the unchanged spec and the card shows that same spec, unedited. Moves made by the Factory account are never taken as decisions.

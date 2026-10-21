@@ -72,6 +72,6 @@ describe("decide", () => {
 
   it("finds nothing to do when every card is where its run says", () => {
     const inReview = card("SD-1", STATUS.specReview, [move("11:00", STATUS.spec, STATUS.specReview, "factory-id")]);
-    expect(decide(state({ runs: [run("SD-1", "station:spec-approval")], cards: [inReview, card("SD-2", STATUS.triage, [], [])] }))).toEqual([]);
+    expect(decide(state({ runs: [run("SD-1", "station:spec-approval")], cards: [inReview, card("SD-2", "In Progress", [], [])] }))).toEqual([]);
   });
 });

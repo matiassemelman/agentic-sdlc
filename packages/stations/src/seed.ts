@@ -9,7 +9,7 @@ type SeedBoard = Pick<Jira, "cardUrl" | "search" | "create" | "move" | "comment"
 type SeedRecord = Pick<GitHub, "issue" | "comments" | "retitle" | "comment">;
 
 /**
- * Whether the board can run the factory: the work type cards are made of uses all ten statuses by
+ * Whether the board can run the factory: the work type cards are made of uses every status in STATUS by
  * name. Jira translates its built-in statuses into the reader's language, so a factory account that
  * reads Jira in another language misses some; the report says so instead of only listing them.
  */
@@ -21,7 +21,7 @@ export function checkBoard(types: { type: string; subtask: boolean; statuses: st
   const english = !locale || locale.toLowerCase().startsWith("en");
   if (!english) report.push(`The factory's account reads Jira in ${locale}, and Jira translates its built-in statuses for it. Set that account's language to English.`);
   if (missing.length) report.push(`The ${card.type} workflow lacks these statuses: ${missing.join(", ")}. It has: ${card.statuses.join(", ")}.`);
-  else report.push(`The ${card.type} workflow has all ten statuses.`);
+  else report.push(`The ${card.type} workflow has all ${Object.values(STATUS).length} statuses.`);
   return { ok: missing.length === 0, report };
 }
 

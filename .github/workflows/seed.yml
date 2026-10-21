@@ -1,4 +1,4 @@
-# Prepares the board: checks that its ten statuses exist and puts the prepared tickets in Backlog.
+# Prepares the board: checks that its statuses exist and puts the prepared tickets in Backlog.
 # Optionally gives a run opened before the board (adopt) its card in Spec review.
 name: Seed board
 

@@ -1,4 +1,4 @@
-export const MAX_RUNS_PER_DAY = 10;
+export const MAX_RUNS_PER_DAY = 20;
 
 export type Admission = { ok: true } | { ok: false; reason: string };
 

@@ -5,13 +5,11 @@ import type { Card, Move } from "./jira.ts";
 /** The board's statuses, one per column. The factory finds them by these names. */
 export const STATUS = {
   backlog: "Backlog",
-  triage: "Triage",
   ready: "Ready",
   spec: "Spec",
   specReview: "Spec review",
   build: "Build",
   gates: "Gates",
-  acceptance: "Acceptance",
   merge: "Merge",
   done: "Done",
 } as const;
@@ -22,19 +20,17 @@ export const STATION_STATUS: Record<string, string> = {
   "station:spec-approval": STATUS.specReview,
   "station:build": STATUS.build,
   "station:gates": STATUS.gates,
-  "station:acceptance": STATUS.acceptance,
   "station:maintainer": STATUS.merge,
 };
 
 /** Statuses only a run's card may be in: a card there without a run was dragged in by hand. */
-const RUN_ONLY: string[] = [STATUS.spec, STATUS.specReview, STATUS.build, STATUS.gates, STATUS.acceptance, STATUS.merge];
+const RUN_ONLY: string[] = [STATUS.spec, STATUS.specReview, STATUS.build, STATUS.gates, STATUS.merge];
 
 const WAITING_FOR: Record<string, string> = {
   "station:spec": "The factory is writing the spec; the card moves to Spec review by itself.",
   "station:spec-approval": "The spec waits for the product owner: move the card from Spec review to Build to approve it, or to Done to reject it.",
   "station:build": "The factory is building this change; the card moves on by itself.",
   "station:gates": "The gates are checking this change; the card moves on by itself.",
-  "station:acceptance": "The change waits for the product owner to accept it.",
   "station:maintainer": "The change waits for the Maintainer to review and merge its PR; the card moves to Done by itself.",
 };
 
