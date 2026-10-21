@@ -1,18 +1,20 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { views } from "@/lib/views";
-import type { Room } from "@/lib/rooms";
+import { filterRooms, type Room } from "@/lib/rooms";
 import { RoomList } from "./RoomList";
 
 /**
  * The split stage: the left half is the window and never moves; the right half scrolls.
  * The window shows the view of the room in the middle of the screen.
  */
-export function Stage({ rooms, hero, after }: { rooms: Room[]; hero: ReactNode; after: ReactNode }) {
+export function Stage({ rooms: allRooms, hero, after }: { rooms: Room[]; hero: ReactNode; after: ReactNode }) {
+  const [guests, setGuests] = useState<number | undefined>(undefined);
+  const rooms = useMemo(() => filterRooms(allRooms, guests), [allRooms, guests]);
   // The list may be empty (a filter with no match) or may no longer hold the active room.
-  const [active, setActive] = useState<string | undefined>(rooms[0]?.id);
+  const [active, setActive] = useState<string | undefined>(allRooms[0]?.id);
   const activeRoom = rooms.find((r) => r.id === active) ?? rooms[0];
   const activeView = activeRoom?.view ?? Object.keys(views)[0];
 
@@ -48,7 +50,7 @@ export function Stage({ rooms, hero, after }: { rooms: Room[]; hero: ReactNode; 
       </div>
       <div className="column">
         {hero}
-        <RoomList rooms={rooms} active={activeRoom?.id} onActive={setActive} />
+        <RoomList rooms={rooms} guests={guests} onGuests={setGuests} active={activeRoom?.id} onActive={setActive} />
         {after}
       </div>
     </div>

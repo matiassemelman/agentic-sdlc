@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getRooms, guestsLabel } from "./rooms";
+import { filterRooms, getRooms, guestsLabel } from "./rooms";
 import { views } from "./views";
 
 describe("rooms", () => {
@@ -24,5 +24,16 @@ describe("rooms", () => {
   it("labels capacity in words", () => {
     expect(guestsLabel(1)).toBe("1 guest");
     expect(guestsLabel(3)).toBe("Up to 3 guests");
+  });
+
+  it("AC-1: filters rooms by the least number of guests they sleep", () => {
+    const names = (guests?: number) => filterRooms(getRooms(), guests).map((r) => r.name);
+    expect(names(1)).toEqual(["La Seu", "Bellver", "Badia", "Tramuntana"]);
+    expect(names(2)).toEqual(["La Seu", "Bellver", "Badia"]);
+    expect(names(3)).toEqual(["Bellver", "Badia"]);
+    expect(names(4)).toEqual(["Badia"]);
+    expect(names(5)).toEqual([]);
+    expect(names(6)).toEqual([]);
+    expect(names()).toEqual(["La Seu", "Bellver", "Badia", "Tramuntana"]);
   });
 });
