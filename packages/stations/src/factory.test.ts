@@ -24,8 +24,10 @@ async function setup(model: ModelCall = async () => ({ output: exampleSpec(), to
   };
   const f: Factory = { root, project: "SD", board, record, call, runUrl: "https://github.com/o/r/actions/runs/1", now: () => new Date(stamp()) };
   await seedPrepared({ root, board, project: "SD" });
-  const [guestFilter, stayTotal, usdPrices] = ["guest-filter", "stay-total", "usd-prices"].map((id) => board.keyFor(`ticket:${id}`));
-  return { f, board, record, calls, guestFilter, stayTotal, usdPrices };
+  const [guestFilter, stayTotal, usdPrices, roomOrder, pricePerGuest] = ["guest-filter", "stay-total", "usd-prices", "room-order", "price-per-guest"].map((id) =>
+    board.keyFor(`ticket:${id}`),
+  );
+  return { f, board, record, calls, guestFilter, stayTotal, usdPrices, roomOrder, pricePerGuest };
 }
 
 describe("the factory on the board", () => {
@@ -254,6 +256,63 @@ describe("the factory on the board", () => {
     await reconcile(f);
     await reconcile(f, "SD-99");
     expect(JSON.stringify([...board.cards.values(), record.issues])).toBe(before);
+  });
+});
+
+describe("one drag queues an epic", () => {
+  const queuedNotes = (board: FakeBoard, key: string) => board.notes(key).filter((n) => n.startsWith("Queued behind"));
+
+  it("takes the card a person moved to Ready, and queues the rest of its epic behind it", async () => {
+    const { f, board, roomOrder, pricePerGuest, guestFilter } = await setup();
+    board.drag(roomOrder, STATUS.ready, "po-id", "Matias");
+    await reconcile(f, roomOrder);
+
+    expect(board.status(roomOrder)).toBe(STATUS.build);
+    expect(board.status(pricePerGuest)).toBe(STATUS.ready);
+    expect(queuedNotes(board, pricePerGuest)).toEqual([expect.stringContaining(`Queued behind ${roomOrder}`)]);
+    expect(board.status(guestFilter)).toBe(STATUS.backlog);
+  });
+
+  it("queues each card once, though Jira's search still shows it in Backlog", async () => {
+    const { f, board, roomOrder, pricePerGuest } = await setup();
+    board.drag(roomOrder, STATUS.ready, "po-id", "Matias");
+    board.freezeSearch();
+    await reconcile(f, roomOrder);
+    await reconcile(f);
+
+    expect(board.status(pricePerGuest)).toBe(STATUS.ready);
+    expect(queuedNotes(board, pricePerGuest)).toHaveLength(1);
+    expect(board.cards.get(pricePerGuest)!.moves.filter((m) => m.to === STATUS.ready)).toHaveLength(1);
+  });
+
+  it("leaves a card of the epic in Backlog when a person took it back out of Ready", async () => {
+    const { f, board, roomOrder, pricePerGuest } = await setup();
+    board.drag(roomOrder, STATUS.ready, "po-id", "Matias");
+    await reconcile(f, roomOrder);
+    board.drag(pricePerGuest, STATUS.backlog, "po-id", "Matias");
+    await reconcile(f, pricePerGuest);
+
+    expect(board.status(pricePerGuest)).toBe(STATUS.backlog);
+    expect(queuedNotes(board, pricePerGuest)).toHaveLength(1);
+  });
+
+  it("leaves alone a card of the epic a person already moved to Ready, though Jira's search still shows it in Backlog", async () => {
+    const { f, board, roomOrder, pricePerGuest } = await setup();
+    board.freezeSearch();
+    board.drag(pricePerGuest, STATUS.ready, "po-id", "Matias");
+    board.drag(roomOrder, STATUS.ready, "po-id", "Matias");
+    await reconcile(f, roomOrder);
+
+    expect(queuedNotes(board, pricePerGuest)).toEqual([]);
+    expect(board.cards.get(pricePerGuest)!.moves).toHaveLength(1);
+  });
+
+  it("queues nothing when the factory itself moved the card to Ready", async () => {
+    const { f, board, roomOrder, pricePerGuest } = await setup();
+    await board.move(roomOrder, STATUS.ready);
+    await reconcile(f, roomOrder);
+
+    expect(board.status(pricePerGuest)).toBe(STATUS.backlog);
   });
 });
 

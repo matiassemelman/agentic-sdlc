@@ -12,6 +12,7 @@ Lookups that cost more than one call to find. Run the commands from the reposito
   - `To Do` (id 11) leads to Backlog;
   - `In Review` (id 31) leads to Ready;
   - the others are named after their status (`Spec review`, `Build`, `Gates`, `Merge`, `Spec`, `Done`). Triage and Acceptance were removed on 2026-10-21.
+- **Start an epic:** move one of its cards to Ready, as a person. Board moves the epic's other cards still in Backlog to Ready behind it, in key order, each with a "Queued behind" comment. To keep one out, move it back to Backlog: a card moved since the drag is left alone. Epics live in `tickets/epics/<id>.md`; Seed files them.
 - **Retry an escalated build** (retries come in STAGE-001-009): `gh issue edit <n> --remove-label escalated`, then `gh workflow run build.yml -f run=<n>`. `prepare` builds a run only when it is at the build station, not escalated, approved for its hash and without a PR.
 
 ## When the factory needs a person

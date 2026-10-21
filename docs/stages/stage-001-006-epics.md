@@ -19,5 +19,5 @@ The rest of STAGE-001-006 (a design session that writes its own tickets) stays i
 ## Progress
 - [x] PR 1: `tickets/epics/`, `parseEpic` and `checkEpics` (a ticket in one epic only, each with its file), `Jira.create` with `epic` and `parent`, Seed files epics first. Each new guard was shown red.
 - [ ] Live Seed run: the epic and its two cards in Backlog, the cards under the epic.
-- [ ] PR 2: Board queues the epic.
+- [x] PR 2: Board queues the epic. `decide` reads the history, not the event: any card of an epic a person moved to Ready queues the epic's cards that are in Backlog and have not moved since that drag, in key order. A pass that fails halfway is finished by the next one; a card a person takes back out stays out. Each epic card is read again on its own after the search names it (standard 1). Five guards, each shown red: only moves before the drag, only from Backlog, only a person's drag, key order, the fresh read. "Only from Backlog" and the fresh read stayed green at first; they needed a test with a lagging search, in which a card a person had already moved to Ready was queued again.
 - [ ] Mini test: Matias drags `room-order` to Ready; both tickets reach production.
