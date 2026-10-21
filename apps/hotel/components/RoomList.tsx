@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Image from "next/image";
-import type { Room } from "@/lib/rooms";
-import { guestsLabel } from "@/lib/rooms";
+import type { Room, RoomSort } from "@/lib/rooms";
+import { guestsLabel, sortRooms } from "@/lib/rooms";
 import { formatPrice, USD_PER_EUR, type Currency } from "@/lib/format";
 import { views } from "@/lib/views";
 
@@ -15,6 +15,7 @@ export function RoomList({
   onActive: (id: string) => void;
 }) {
   const [currency, setCurrency] = useState<Currency>("EUR");
+  const [sort, setSort] = useState<RoomSort>("ours");
   return (
     <section id="rooms" className="rooms read" aria-labelledby="rooms-title">
       <h2 id="rooms-title" className="head" data-reveal>
@@ -33,8 +34,18 @@ export function RoomList({
           Dollar prices are approximate, converted at 1 EUR = {USD_PER_EUR} USD, the European Central Bank reference rate of 19 October 2026.
         </p>
       </div>
+      <div className="sort" data-reveal>
+        <div className="currency__switch" role="group" aria-label="Sort rooms">
+          <button type="button" className="currency__button" aria-pressed={sort === "ours"} onClick={() => setSort("ours")}>
+            Our order
+          </button>
+          <button type="button" className="currency__button" aria-pressed={sort === "price-asc"} onClick={() => setSort("price-asc")}>
+            Lowest price first
+          </button>
+        </div>
+      </div>
       <ul className="rooms__list">
-        {rooms.map((room, i) => (
+        {sortRooms(rooms, sort).map((room, i) => (
           <li
             key={room.id}
             data-testid="room"
