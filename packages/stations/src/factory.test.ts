@@ -23,7 +23,8 @@ async function setup(model: ModelCall = async () => ({ output: exampleSpec(), to
     return model(request);
   };
   const f: Factory = { root, project: "SD", board, record, call, runUrl: "https://github.com/o/r/actions/runs/1", now: () => new Date(stamp()) };
-  const [guestFilter, stayTotal, usdPrices] = await seedPrepared({ root, board, project: "SD" });
+  await seedPrepared({ root, board, project: "SD" });
+  const [guestFilter, stayTotal, usdPrices] = ["guest-filter", "stay-total", "usd-prices"].map((id) => board.keyFor(`ticket:${id}`));
   return { f, board, record, calls, guestFilter, stayTotal, usdPrices };
 }
 

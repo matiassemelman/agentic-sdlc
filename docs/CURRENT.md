@@ -7,9 +7,10 @@
 **File:** `docs/epics/epic-001-factory-v0.md`
 
 ## Active Stage
-**STAGE-001-004:** Build with self-verification, and the spec gate
-**File:** `docs/stages/stage-001-004-build.md`
-**Phase:** Works live end to end (KAN-3 in production); the code review's fixes wait in PR #32
+**STAGE-001-006 (first slice):** Epics on the board, one drag queues them
+**File:** `docs/stages/stage-001-006-epics.md`
+**Phase:** PR 1 (Seed files epics) open; then the live Seed run, PR 2 (Board queues the epic), the mini test
+**Before:** STAGE-001-004 works live end to end (KAN-3 in production); its code review's fixes merged in PR #32 on 2026-10-21, not yet run live.
 
 ## Context
 - **STAGE-001-003 done on 2026-10-20.** The board works live: webhook → relay → `Board`, the spec on the card, approval bound to the hash, the queue, wrong drags put back, rejection, failures that say why. Fixed on the way: the webhook's URL, the Ready and Done columns, the listing lag (GitHub and Jira), the SDK's parser, the spec's limits. Details in its stage file.
@@ -28,8 +29,8 @@
 ## Next Action
 Lookups (watch a run, start one, retry a build, Jira ids, the App check, secrets): `docs/runbook.md`.
 
-1. **Merge PR #32** (the code review's fixes, every check green, not yet run live): the E2E gate before Merge, the agent's allowlist (`WRITABLE`), notices that never stop a run, markers last. `main` without it is the state the rehearsal (run #27) proved.
-2. **A mini test from zero, watched end to end:** a small feature, a short design session (`/grill-with-docs`), its tickets, the build, the deploy; GitHub's pipelines, the cards moving in Jira, the page changing. It is also the first live run of PR #32. Settle in the session:
+1. **The mini test, decided in a design session on 2026-10-21** (`docs/stages/stage-001-006-epics.md`): the epic `compare-rooms` (`room-order`, then `price-per-guest`); Matias drags the first card, and the factory queues the rest. Merge PR 1, run Seed, check the epic in Jira; PR 2; then the drag.
+2. **(Settled in that session; kept for the record.) A mini test from zero, watched end to end:** a small feature, a short design session (`/grill-with-docs`), its tickets, the build, the deploy; GitHub's pipelines, the cards moving in Jira, the page changing. It is also the first live run of PR #32. Settle in the session:
    - **How the tickets get in.** Intake from a design session (STAGE-001-006) is not built: the factory takes only prepared tickets, a `tickets/<id>.md` like `tickets/usd-prices.md` and its card labelled `ticket:<id>` (Seed creates it). Quickest: the session writes the ticket file, a PR merges it, `seed.yml` adds the card to Backlog, then the card moves to Ready.
    - **i18n, if that is the feature.** `AGENTS.md` says the text a visitor reads is in English, so that rule changes first, by the Maintainer. Routing by locale needs `middleware.ts` or `next.config.ts`, which the agent may not write: a language switch in the page, like the currency switch, fits `app/`, `components/` and `lib/`.
    - Expect about 9 minutes from Ready to Merge now that Merge waits for the E2E run (run #27 without it: 285 s of build).

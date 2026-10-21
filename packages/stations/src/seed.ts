@@ -3,7 +3,7 @@ import { STATUS, stationOf } from "./board.ts";
 import type { GitHub } from "./github.ts";
 import { CARD_TYPE, type Jira } from "./jira.ts";
 import { readSpecComment, specAdf } from "./render.ts";
-import { listTicketIds, loadTicket, type Ticket } from "./tickets.ts";
+import { listEpics, listTicketIds, loadTicket, type Epic, type Ticket } from "./tickets.ts";
 
 type SeedBoard = Pick<Jira, "cardUrl" | "search" | "create" | "move" | "comment" | "link">;
 type SeedRecord = Pick<GitHub, "issue" | "comments" | "retitle" | "comment">;
@@ -26,7 +26,10 @@ export function checkBoard(types: { type: string; subtask: boolean; statuses: st
 }
 
 /** A prepared ticket's card: its text for people to read, and a note that agents read the repository's copy. */
-export function ticketCard(ticket: Ticket): { summary: string; description: adf.Adf; labels: string[] } {
+export function ticketCard(ticket: Ticket, epic?: Epic): { summary: string; description: adf.Adf; labels: string[] } {
+  const start = epic
+    ? ` It is one of the ${epic.tickets.length} tickets of the epic "${epic.title}": moving it to Ready queues the others of the epic behind it.`
+    : " To start it, move the card to Ready.";
   return {
     summary: ticket.title,
     description: adf.doc(
@@ -35,21 +38,49 @@ export function ticketCard(ticket: Ticket): { summary: string; description: adf.
       adf.paragraph(
         adf.text("A prepared ticket. The factory reads its text from "),
         adf.code(`tickets/${ticket.id}.md`),
-        adf.text(" in the repository; an edit here never reaches an agent. To start it, move the card to Ready."),
+        adf.text(` in the repository; an edit here never reaches an agent.${start}`),
       ),
     ),
     labels: [`ticket:${ticket.id}`],
   };
 }
 
-/** Puts every prepared ticket in Backlog, unless the board already has an open card for it. */
+/** An epic's card: the idea, and the order its tickets are built in. */
+export function epicCard(epic: Epic): { summary: string; description: adf.Adf; labels: string[] } {
+  return {
+    summary: epic.title,
+    description: adf.doc(
+      ...adf.markdownBlocks(epic.body),
+      adf.rule,
+      adf.paragraph(
+        adf.text("An epic of prepared tickets, from "),
+        adf.code(`tickets/epics/${epic.id}.md`),
+        adf.text(`, built in this order: ${epic.tickets.join(", ")}. Moving any of its cards to Ready queues the others behind it.`),
+      ),
+    ),
+    labels: [`epic:${epic.id}`],
+  };
+}
+
+/**
+ * Puts every prepared ticket in Backlog, unless the board already has an open card for it. An epic's tickets
+ * go first, under the epic's card and in the epic's order, so their keys keep that order.
+ */
 export async function seedPrepared({ root, board, project }: { root: string; board: SeedBoard; project: string }): Promise<string[]> {
   const created: string[] = [];
-  for (const id of listTicketIds(root)) {
-    const open = await board.search(`project = "${project}" AND labels = "ticket:${id}" AND status != "${STATUS.done}"`);
-    if (open.length) continue;
-    created.push(await board.create({ project, ...ticketCard(loadTicket(root, id)) }));
+  const open = async (label: string) => (await board.search(`project = "${project}" AND labels = "${label}" AND status != "${STATUS.done}"`))[0]?.key;
+  const add = async (id: string, epic?: { card: string; epic: Epic }) => {
+    if (await open(`ticket:${id}`)) return;
+    created.push(await board.create({ project, ...ticketCard(loadTicket(root, id), epic?.epic), ...(epic ? { parent: epic.card } : {}) }));
+  };
+  const epics = listEpics(root);
+  for (const epic of epics) {
+    let card = await open(`epic:${epic.id}`);
+    if (!card) created.push((card = await board.create({ project, ...epicCard(epic), epic: true })));
+    for (const id of epic.tickets) await add(id, { card, epic });
   }
+  const filed = new Set(epics.flatMap((e) => e.tickets));
+  for (const id of listTicketIds(root).filter((id) => !filed.has(id))) await add(id);
   return created;
 }
 

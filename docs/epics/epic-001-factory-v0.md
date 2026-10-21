@@ -22,7 +22,7 @@ Goal: an idea goes from a design session to production through every station in 
    - Fail-first: the new tests fail on the base code and pass on the change.
    - Scope: only `apps/hotel` changes, and the agent's token cannot change `.github/workflows`.
    - Required checks: a skipped job counts as passed, so a pending or failed deployment must not leave a green check.
-6. **STAGE-001-006** Intake: a design session (`/grill-with-docs`) files an epic and its tickets in Ready, and the factory starts on its own.
+6. **STAGE-001-006** Intake: a design session (`/grill-with-docs`) files an epic and its tickets in Backlog, and one drag to Ready queues the whole epic. First slice (epics of prepared tickets, the drag): `docs/stages/stage-001-006-epics.md`.
 7. **STAGE-001-007** Gate effectiveness: an "inject a bug" switch plants known defects and measures which gate catches each (precision and recall per gate).
 8. **STAGE-001-008** Model gates, never run by the model that wrote the code.
    - The eval checks the change against the spec, criterion by criterion, with evidence.
