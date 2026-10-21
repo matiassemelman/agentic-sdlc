@@ -86,7 +86,7 @@ Measured, not assumed: the fast gates take 39 s, so the time is in the build.
 
 - The evidence's base spent 212 of 237 s on five tests meant to fail, in one worker, each retried and waiting out a click on a missing button. Now: `--retries=0 --fully-parallel --workers=5` on the base, and `actionTimeout` 5 s in the hotel's Playwright config (PR #25).
 - The two runs differ in ticket and model, and the agent ran the faster evidence too (6 times), so the agent's drop is not Haiku's alone.
-- Run #27 escalated: `AGENTS.md` tells the agent to run `pnpm --filter hotel e2e`, and its allowed tools refused it. Haiku stopped and asked instead of working around it. Fixed, with a test that every gate in `AGENTS.md` is an allowed tool (PR #27).
+- Run #27 escalated: `AGENTS.md` tells the agent to run `pnpm --filter hotel e2e`, and its allowed tools refused it. Haiku stopped and asked instead of working around it. Fixed, with a test that every gate in `AGENTS.md` is an allowed tool (PR #28).
 - The same PR protects `apps/hotel/AGENTS.md` and the hotel's test configs: the agent may not change its own rules or the harness that judges it, and `AGENTS.md` and `implement-ticket` say so.
 
 ## The board finishes by itself (2026-10-21)
