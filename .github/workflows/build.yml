@@ -73,6 +73,13 @@ jobs:
             --allowedTools "Read,Write,Edit,Glob,Grep,Bash(pnpm lint),Bash(pnpm typecheck),Bash(pnpm test),Bash(pnpm build),Bash(pnpm --filter hotel test:*),Bash(pnpm --filter hotel exec vitest:*),Bash(pnpm --filter hotel exec playwright test:*),Bash(node packages/stations/src/run-evidence.ts:*),Bash(node .claude/skills/design-taste-frontend/scripts/lint.mjs:*),Bash(git diff:*),Bash(git status:*)"
 
       # From here on every step runs even when the agent failed, so a failed build reaches a person.
+      - name: Where the agent's time went
+        if: always() && steps.prepare.outputs.go == 'true'
+        continue-on-error: true
+        env:
+          RUN: ${{ inputs.run }}
+        run: node packages/stations/src/agent-report.ts --run "$RUN" "$RUNNER_TEMP/claude-execution-output.json"
+
       - name: The factory's own evidence
         id: evidence
         if: always() && steps.prepare.outputs.go == 'true'
