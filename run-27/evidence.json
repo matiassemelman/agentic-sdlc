@@ -1,0 +1,89 @@
+{
+  "rows": [
+    {
+      "id": "AC-1",
+      "file": "apps/hotel/lib/rooms.test.ts",
+      "kind": "unit",
+      "base": "failed",
+      "change": "passed"
+    },
+    {
+      "id": "AC-2",
+      "file": "apps/hotel/e2e/guests.spec.ts",
+      "kind": "e2e",
+      "base": "failed",
+      "change": "passed"
+    },
+    {
+      "id": "AC-3",
+      "file": "apps/hotel/e2e/guests.spec.ts",
+      "kind": "e2e",
+      "base": "failed",
+      "change": "passed"
+    },
+    {
+      "id": "AC-4",
+      "file": "apps/hotel/e2e/guests.spec.ts",
+      "kind": "e2e",
+      "base": "failed",
+      "change": "passed"
+    },
+    {
+      "id": "AC-5",
+      "file": "apps/hotel/e2e/guests.spec.ts",
+      "kind": "e2e",
+      "base": "failed",
+      "change": "passed"
+    },
+    {
+      "id": "AC-6",
+      "file": "apps/hotel/e2e/guests.spec.ts",
+      "kind": "e2e",
+      "base": "failed",
+      "change": "passed"
+    }
+  ],
+  "problems": [],
+  "screenshots": [
+    {
+      "id": "AC-2",
+      "project": "desktop"
+    },
+    {
+      "id": "AC-3",
+      "project": "desktop"
+    },
+    {
+      "id": "AC-4",
+      "project": "desktop"
+    },
+    {
+      "id": "AC-5",
+      "project": "desktop"
+    },
+    {
+      "id": "AC-6",
+      "project": "desktop"
+    },
+    {
+      "id": "AC-2",
+      "project": "small-iphone"
+    },
+    {
+      "id": "AC-3",
+      "project": "small-iphone"
+    },
+    {
+      "id": "AC-4",
+      "project": "small-iphone"
+    },
+    {
+      "id": "AC-5",
+      "project": "small-iphone"
+    },
+    {
+      "id": "AC-6",
+      "project": "small-iphone"
+    }
+  ]
+}
