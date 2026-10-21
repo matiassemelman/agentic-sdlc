@@ -1,23 +1,25 @@
 # agentic-sdlc — design
 
-A small-scale software factory, after Uber ("Efficient Software Factory", 2026) and Spotify ("Introducing Spotify Technology", 2026). A guest plays **Product owner** on a Jira board: moves a ticket for a demo hotel app to Ready, approves its spec, accepts it in an ephemeral environment and sends the PR to the **Maintainer** (Matias), who merges it to production. Vocabulary: [`GLOSSARY.md`](../GLOSSARY.md).
+A small-scale software factory, after Uber ("Efficient Software Factory", 2026) and Spotify ("Introducing Spotify Technology", 2026). The **Maintainer** (Matias) runs a design session that turns an idea for a demo hotel app into an epic of tickets in Ready. The factory carries each ticket to a verified pull request on its own: it writes the spec, builds, proves its own work, and passes gates that do not trust it. People decide only when the factory **escalates** on the card, and at the merge to production. Vocabulary: [`GLOSSARY.md`](../GLOSSARY.md).
 
-Agreed with Matias on 2026-10-15.
+Agreed with Matias on 2026-10-15. Revised on 2026-10-20: people on the loop, not in it ([ADR 0001](adr/0001-people-on-the-loop.md)), with verification as the core of the demo.
 
 ## The run (target: 10–12 minutes)
 
 | # | Station | Who | How | Practice it shows |
 |---|---|---|---|---|
-| 1 | Ticket | Product owner | Moves 1 of 3 prepared tickets to Ready on the board; the factory pulls from Ready, one run at a time | Prepared text from the repo = no prompt-injection surface (written tickets, with the Maintainer's triage: STAGE-001-004) |
-| 2 | Spec | Opus 5.5 | One API call → `specs/<n>-<slug>.md`, Given/When/Then criteria | Spotify: judgment is the bottleneck |
-| 3 | Spec approval | Product owner | On the board: Spec review → Build approves, → Done rejects; bound to the spec's hash | Humans decide at the cheapest point |
-| 4 | Build | Executor model in `claude-code-action` | The only agent loop; writes code + unit and e2e tests, opens the PR | Uber: managed agents |
-| 5 | Fast gates | CI | Lint, type check, build, unit tests (~1 min) | Cheapest check first |
-| 6 | Ephemeral environment | Vercel | Preview deployment per PR (public for the hotel app) | Per-PR environments |
-| 7 | Parallel gates | CI + models | Playwright e2e · eval vs. spec (Opus, one call) · AI code review (Opus, one call, never the model that wrote the code) · agent tester (code-mode: one call writes a Playwright script, CI runs it, one call reads the result; report with screenshots on the PR) | Uber: uReview, E2E with visual validation, code-mode |
-| 8 | Self-healing | Executor | A red gate sends its error back to the agent, max 2 retries; then the run asks a person for help | Uber: self-healing CI |
-| 9 | Acceptance | Product owner | Sees the ephemeral environment and reports → "Send to Matias" | |
-| 10 | Merge | Maintainer | Approves and merges; production deploy | Agent cannot merge |
+| 1 | Design session | Maintainer + agent | `/grill-with-docs` in Claude Code until the idea splits into clear tickets; a skill files the epic and its tickets in Ready | Spotify: judgment is the bottleneck, so people spend it on what to build |
+| 2 | Ticket | Factory | Pulls from Ready, oldest first, one run at a time. A ticket a guest writes waits for the Maintainer's triage first | Untrusted text never reaches an agent unread |
+| 3 | Spec | Opus 5.5 | One API call, Given/When/Then criteria | |
+| 4 | Spec gate | CI | Validation plus a policy: a clear spec goes on, an unclear one (too many assumptions, refused validation) escalates to the card, where a person approves it bound to its hash | People decide only where the evidence is weak |
+| 5 | Build | Executor model in `claude-code-action` | The only agent loop: writes code and tests, runs every gate in `AGENTS.md`, proves each criterion on the running app with `verify-hotel`, opens the PR with the evidence | Uber: managed agents; pstack: an agent that verifies its own work |
+| 6 | Fast gates | CI | Lint, types, build, unit tests; criterion coverage, fail-first, scope. CI never trusts the agent's report | A check you never saw fail proves nothing |
+| 7 | Ephemeral environment | Vercel | Preview deployment per PR (public for the hotel app) | Per-PR environments |
+| 8 | Model gates | CI + models | Playwright e2e · eval vs. spec · AI code review (never the model that wrote the code) · agent tester (screenshots on the PR and the card) | Uber: uReview, E2E with visual validation |
+| 9 | Self-healing | Executor | A red gate sends its error back to the agent, max 2 retries; then the run escalates to the card | Uber: self-healing CI |
+| 10 | Merge | Maintainer | Reads the evidence on the PR, merges; production deploy | The one-way door stays a person's; the agent cannot merge |
+
+Gate effectiveness is measured, not assumed: an "inject a bug" switch plants known defects, and each gate reports what it caught (precision and recall, as Uber measures uReview).
 
 The panel shows, per station: duration, tokens, USD and cache share; at the end: total cost, total time and the share spent waiting for a person, plus the context-graph subgraph the run touched.
 
@@ -33,7 +35,7 @@ Rooms come from a JSON file in the repo.
 
 - Monorepo, two Vercel projects: `apps/hotel` (the only path the agent may change) and `apps/factory` (the panel).
 - Orchestration: GitHub Actions + `anthropics/claude-code-action` with Matias's own API key (subscription credentials may not serve other users). Single-shot stations call the Messages API directly.
-- People work on the board: a Jira kanban whose ten columns are the stations and queues (`Backlog → Triage → Ready → Spec → Spec review → Build → Gates → Acceptance → Merge → Done`). The factory works on GitHub: each run is an issue whose labels and comments are its record. Each side writes only its own data.
+- People watch the board and answer escalations there: a Jira kanban whose ten columns are the stations and queues (`Backlog → Triage → Ready → Spec → Spec review → Build → Gates → Acceptance → Merge → Done`; Spec review and Acceptance are revisited in STAGE-001-004, now that a person reaches them only on escalation). The factory works on GitHub: each run is an issue whose labels and comments are its record. Each side writes only its own data.
 - From the board to GitHub: a signed Jira webhook → a relay in `apps/factory` (Vercel) → the `Board` workflow (`workflow_dispatch`). The workflow reads the board and GitHub and brings them into line (reconciliation), so a lost, repeated or forged message changes nothing. No Jira automation: Free allows 150 steps a month.
 - The panel (v1) reads GitHub through one server route cached for 5 s, shared by every viewer.
 - Context: `AGENTS.md` (tool-agnostic; Cursor, Copilot and Gemini read it too), skills versioned in the repo (`write-spec`, `implement-ticket`, `verify`), specs and ADRs as memory.
@@ -51,7 +53,7 @@ Rooms come from a JSON file in the repo.
 - One run at a time; at most 10 runs a day; USD 18 monthly spend limit in the Anthropic console.
 - Agent token: branches and PRs only. `main` protected: required gates + Maintainer review via `CODEOWNERS`. No production secrets reachable by the agent.
 - The Anthropic API key and the Factory account's Jira token live in the GitHub environment `factory`, which only `main` may use. Workflows that run pull-request code (e2e on previews) get no secrets. The relay holds only the webhook secret and a GitHub token that can dispatch workflows on this repository.
-- A spec approval is bound to the spec's SHA-256: it counts only if the run issue holds the unchanged spec and the card shows that same spec, unedited. Moves made by the Factory account are never taken as decisions.
+- A person's approval of an escalated spec is bound to the spec's SHA-256: it counts only if the run issue holds the unchanged spec and the card shows that same spec, unedited. Moves made by the Factory account are never taken as decisions.
 
 ## Cost (official prices, 2026-10-15)
 

@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { exampleSpec } from "./fixtures.ts";
-import { validateSpec } from "./spec.ts";
+import { specSchema, validateSpec } from "./spec.ts";
+
+describe("specSchema", () => {
+  // Seen live on 2026-10-20: KAN-2's spec had more than 8 assumptions, a limit the model was never told.
+  it("tells the model every limit validateSpec enforces on a list", () => {
+    const { criteria, assumptions, outOfScope, files } = specSchema.properties;
+    expect(criteria.description).toContain("2 to 8");
+    expect(assumptions.description).toContain("At most 8");
+    expect(outOfScope.description).toContain("At most 8");
+    expect(files.description).toContain("1 to 12");
+  });
+});
 
 describe("validateSpec", () => {
   it("accepts a well-formed spec", () => {

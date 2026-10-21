@@ -1,6 +1,6 @@
 # agentic-sdlc
 
-A small-scale software factory, after Uber and Spotify: a product owner puts a change to a demo hotel app on the board and watches it travel from ticket to production, deciding at the human checkpoints.
+A small-scale software factory, after Uber and Spotify: a design session turns an idea for a demo hotel app into tickets, the factory carries each ticket to a verified pull request on its own, and people decide only when it escalates or when the change goes to production.
 
 ## Language
 
@@ -10,8 +10,12 @@ A small-scale software factory, after Uber and Spotify: a product owner puts a c
 The whole delivery line from ticket to production, where agents do the work and gates and people decide what moves forward.
 _Avoid_: pipeline (that is only CI), software house or outsourcing (the consultancy sense)
 
+**Design session**:
+A conversation in which the Maintainer and an agent grill an idea until it splits into clear tickets, filed on the board as an epic.
+_Avoid_: refinement, planning, grooming
+
 **Ticket**:
-A change request on the board, either one of the prepared tickets or one a product owner writes; the unit of work the factory takes from Ready.
+A change request on the board, filed by a design session, prepared in the repository, or written by a product owner; the unit of work the factory takes from Ready.
 _Avoid_: task, story, feature request, issue, work item
 
 **Prepared ticket**:
@@ -39,7 +43,7 @@ One step of a run where a single agent, gate or person acts on the change.
 _Avoid_: stage, phase, step
 
 **Spec**:
-The written definition of a ticket, with acceptance criteria, approved by a person before any code is written.
+The written definition of a ticket, with acceptance criteria, approved before any code is written: by the spec gate, or by a person when the gate escalates it.
 _Avoid_: plan, design doc, requirements
 
 **Ephemeral environment**:
@@ -52,6 +56,10 @@ _Avoid_: preview, staging, test server
 An automatic check a change must pass before it moves to the next station.
 _Avoid_: check, control, step
 
+**Spec gate**:
+The gate that decides whether a spec is clear enough to build without a person, and escalates it when it is not.
+_Avoid_: auto-approval, spec review
+
 **Eval**:
 A gate where a model judges whether a change meets each acceptance criterion of its spec.
 _Avoid_: LLM test, AI check
@@ -62,12 +70,16 @@ _Avoid_: eval suite, evals, test set
 
 ### People
 
+**Escalation**:
+The factory stopping a run to ask a person, on its card, because its own evidence is not enough to go on.
+_Avoid_: alert, handoff, manual review
+
 **Approval**:
-A decision a person makes at a fixed station of a run: triaging a written ticket, approving the spec, accepting the change, or merging it.
+A decision a person makes on a run: answering an escalation, triaging a ticket a guest wrote, or merging the change into production.
 _Avoid_: human gate, sign-off, human in the loop
 
 **Product owner**:
-The person who prioritises the board, writes or picks a ticket, moves it to Ready, approves its spec and accepts the change in its ephemeral environment. A role: in a demo, a guest plays it.
+The person who decides what a ticket means: writes or prioritises tickets and answers the factory's escalations about them. A role: in a demo, a guest plays it.
 _Avoid_: user, client, requester, reviewer, visitor
 
 **Maintainer**:
