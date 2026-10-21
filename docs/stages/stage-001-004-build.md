@@ -40,6 +40,8 @@
 - **The board:** Spec review now holds only escalated specs. The Acceptance column is revisited at the end of the stage.
 
 ## Matias does (in GitHub)
+Where the App's key and installation live, and how to check them: `docs/runbook.md`.
+
 1. Create a GitHub App, "agentic-sdlc factory", on your account:
    - permissions Contents (read and write), Pull requests (read and write), Issues (read and write);
    - no webhook;

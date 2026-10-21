@@ -8,7 +8,7 @@ import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSyn
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { prepareBuild, publishBuild, type Built, type Push } from "./build.ts";
+import { changedFiles, prepareBuild, publishBuild, type Built, type Push } from "./build.ts";
 import { clients, required } from "./env.ts";
 import { GitHub } from "./github.ts";
 
@@ -51,10 +51,8 @@ if (step === "prepare") {
 const token = required("APP_TOKEN");
 const remote = `https://x-access-token:${token}@github.com/${repo}.git`;
 const author = ["-c", "user.name=agentic-sdlc factory", "-c", "user.email=factory@users.noreply.github.com"];
-const changed = git(["status", "--porcelain", "--untracked-files=all"])
-  .split("\n")
-  .filter(Boolean)
-  .map((line) => line.slice(3).split(" -> ").at(-1)!);
+// Not through git(): its trim() would eat the leading space of the first line's status.
+const changed = changedFiles(execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], { cwd: root, encoding: "utf8" }));
 const blockedFile = join(root, ".factory/blocked.md");
 const evidenceDir = join(root, "evidence");
 const report = existsSync(join(evidenceDir, "evidence.json")) ? JSON.parse(readFileSync(join(evidenceDir, "evidence.json"), "utf8")) : undefined;

@@ -1,6 +1,10 @@
 # Retro: the board's live test and STAGE-001-004 (2026-10-20)
 
-Improvements to the environment, most severe first. Apply them at the start of the next session, before the first live build. Each has a check that says it is done.
+Improvements to the environment, most severe first. Each has a check that says it is done.
+
+**Applied 2026-10-20, cut short** (Matias: first live runs before more tooling):
+- Done: 3 (`scripts/watch-run.sh`), 4 (`CODING_STANDARDS.md`, imported by the root `CLAUDE.md`), 5 (`pnpm lint:workflows`, also used by the fast gates), 6 (`docs/runbook.md`). The "General" line in the stage file was already gone.
+- Deferred: 1 (the doctor) and 2 (the admin token). The App's install was checked with a JWT; the webhook, the relay and the columns worked on the first live run.
 
 ## 1. A factory doctor: check the setup from the real sources before a live run
 
