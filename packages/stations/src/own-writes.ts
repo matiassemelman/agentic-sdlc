@@ -17,6 +17,7 @@ export function readOwnWrites(record: RecordApi): RecordApi {
   return {
     comment: (number, body) => record.comment(number, body),
     comments: (number) => record.comments(number),
+    dispatch: (workflow, inputs) => record.dispatch(workflow, inputs),
     async runs(filter) {
       const runs = await record.runs(filter);
       for (const run of runs) listed.set(run.number, run);

@@ -15,6 +15,8 @@ on:
 permissions:
   contents: read
   issues: write
+  # Starts the build station after an approval (workflow_dispatch is the one event GITHUB_TOKEN may start).
+  actions: write
 
 # One look at the board at a time. GitHub keeps only the newest waiting run per group, which is fine:
 # every run checks the whole board, so a skipped one loses nothing.

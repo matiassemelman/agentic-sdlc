@@ -24,6 +24,12 @@ describe("spec comment", () => {
     expect(comment).toContain("move the run's card from Spec review to Build to approve it");
   });
 
+  it("says on a board run's comment that the spec gate decides", () => {
+    const comment = renderSpecComment({ ...envelope(), meta: { ...envelope().meta, card: "SD-1" } });
+    expect(comment).toContain("The spec gate decides next: it approves a clear spec, or sends it to SD-1 in Spec review for a person.");
+    expect(comment).not.toContain("move SD-1 from Spec review to Build");
+  });
+
   it("refuses a comment whose visible text was edited", () => {
     const edited = renderSpecComment(envelope()).replace("exactly Bellver and Badia show", "every room shows");
     expect(readSpecComment(edited)).toEqual({ ok: false, reason: expect.stringContaining("was changed") });

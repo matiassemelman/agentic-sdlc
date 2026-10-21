@@ -1,0 +1,114 @@
+# The build station. Board starts it after a spec is approved, by the spec gate or by a person. The agent
+# implements the spec in apps/hotel and checks itself (the implement-ticket skill). Then the factory runs the
+# evidence on its own, and a step that is not the agent pushes and opens the PR with the factory's App, so the
+# gates run on it. The agent gets the Anthropic key and a token that can read the repository, and no other
+# secret: the Jira token and the App's key live only in the steps after it.
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      run:
+        description: The run issue to build
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+# One build per run at a time. A second request waits, then finds the run already built and stops.
+concurrency:
+  group: build-${{ inputs.run }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build run #${{ inputs.run }}
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: factory
+      deployment: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter hotel exec playwright install --with-deps chromium webkit
+
+      - name: Read the approved spec
+        id: prepare
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN: ${{ inputs.run }}
+        run: node packages/stations/src/run-build.ts prepare --run "$RUN"
+
+      - name: The build agent
+        id: agent
+        if: steps.prepare.outputs.go == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
+          prompt: |
+            Implement the approved spec of run #${{ inputs.run }}. Read .claude/skills/implement-ticket/SKILL.md and follow it.
+            The spec is in .factory/envelope.json. You are done when every gate passes and
+            `node packages/stations/src/run-evidence.ts --spec .factory/envelope.json --out evidence` exits 0,
+            or when you have written .factory/blocked.md for a person.
+          claude_args: >-
+            --model claude-sonnet-5-5
+            --max-turns 80
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(pnpm lint),Bash(pnpm typecheck),Bash(pnpm test),Bash(pnpm build),Bash(pnpm --filter hotel test:*),Bash(pnpm --filter hotel exec vitest:*),Bash(pnpm --filter hotel exec playwright test:*),Bash(node packages/stations/src/run-evidence.ts:*),Bash(node .claude/skills/design-taste-frontend/scripts/lint.mjs:*),Bash(git diff:*),Bash(git status:*)"
+
+      # From here on every step runs even when the agent failed, so a failed build reaches a person.
+      - name: The factory's own evidence
+        id: evidence
+        if: always() && steps.prepare.outputs.go == 'true'
+        continue-on-error: true
+        env:
+          RUN: ${{ inputs.run }}
+          REPO: ${{ github.repository }}
+        run: node packages/stations/src/run-evidence.ts --spec .factory/envelope.json --out evidence --images-url "https://raw.githubusercontent.com/${REPO}/evidence/run-${RUN}/"
+
+      - name: The factory's App token
+        id: app
+        if: always() && steps.prepare.outputs.go == 'true'
+        uses: actions/create-github-app-token@v3
+        # app-id is deprecated for client-id, but actionlint 1.7.12 (the fast gates' version) knows only app-id.
+        with:
+          app-id: ${{ vars.FACTORY_APP_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+
+      - name: Publish, or hand the run to a person
+        if: always() && steps.prepare.outputs.go == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APP_TOKEN: ${{ steps.app.outputs.token }}
+          AGENT_OUTCOME: ${{ steps.agent.outcome }}
+          EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
+          RUN: ${{ inputs.run }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JIRA_CLOUD_ID: ${{ vars.JIRA_CLOUD_ID }}
+          JIRA_SITE: ${{ vars.JIRA_SITE }}
+          JIRA_PROJECT: ${{ vars.JIRA_PROJECT }}
+          JIRA_EMAIL: ${{ vars.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        run: node packages/stations/src/run-build.ts publish --run "$RUN"
+
+      - name: Keep the evidence
+        if: always() && steps.prepare.outputs.go == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ inputs.run }}-evidence
+          path: evidence/
+          if-no-files-found: ignore
+          retention-days: 90

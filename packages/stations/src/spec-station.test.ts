@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { exampleSpec } from "./fixtures.ts";
+import { exampleSpec, unclearSpec } from "./fixtures.ts";
 import { readSpecComment } from "./render.ts";
 import { runSpecStation, StationError, type ModelCall } from "./spec-station.ts";
 
@@ -44,6 +44,13 @@ describe("spec station", () => {
     spec.files = [".github/workflows/gates.yml"];
     const { call } = fakeModel(spec);
     await expect(runSpecStation({ root, ticketId: "guest-filter", issue: 3, call })).rejects.toThrow(StationError);
+  });
+
+  it("returns an unclear spec's soft problems instead of failing, in a comment a person can approve", async () => {
+    const { call } = fakeModel(unclearSpec());
+    const { comment, soft } = await runSpecStation({ root, ticketId: "guest-filter", issue: 3, call });
+    expect(soft).toEqual(["9 choices the ticket leaves open (the limit is 8)"]);
+    expect(readSpecComment(comment).ok).toBe(true);
   });
 
   it("fails clearly when the output was cut off", async () => {

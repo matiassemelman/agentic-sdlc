@@ -4,12 +4,15 @@ import { STATUS } from "./board.ts";
 import { reconcile, type Factory } from "./factory.ts";
 import { FakeBoard, FakeRecord, stamp } from "./fakes.ts";
 import { HttpError } from "./http.ts";
-import { exampleSpec } from "./fixtures.ts";
+import { exampleSpec, unclearSpec } from "./fixtures.ts";
+import { SHOWN_SHA } from "./render.ts";
 import { seedPrepared } from "./seed.ts";
 import { StationError, type ModelCall } from "./spec-station.ts";
 
 const root = resolve(import.meta.dirname, "../../..");
 const tokens = { input: 3000, output: 2000, cacheWrite: 0, cacheRead: 0 };
+/** A model whose spec has more assumptions than the limit, so the spec gate sends it to a person in Spec review. */
+const unclear: ModelCall = async () => ({ output: unclearSpec(), tokens, stopReason: "end_turn" });
 
 async function setup(model: ModelCall = async () => ({ output: exampleSpec(), tokens, stopReason: "end_turn" })) {
   const board = new FakeBoard();
@@ -25,26 +28,60 @@ async function setup(model: ModelCall = async () => ({ output: exampleSpec(), to
 }
 
 describe("the factory on the board", () => {
-  it("takes a card moved to Ready and puts its spec in Spec review, on the card and on the run issue", async () => {
+  it("takes a card moved to Ready, and the spec gate approves a clear spec and moves the card to Build", async () => {
     const { f, board, record, guestFilter, calls } = await setup();
     board.drag(guestFilter, STATUS.ready);
     const specs = await reconcile(f, guestFilter);
 
-    expect(board.status(guestFilter)).toBe(STATUS.specReview);
+    expect(board.status(guestFilter)).toBe(STATUS.build);
+    expect(record.dispatched).toEqual([{ workflow: "build.yml", inputs: { run: "10" } }]);
     const [run] = record.issues;
     expect(run.title).toBe(`${guestFilter}: Filter rooms by number of guests`);
-    expect(run.labels).toEqual(["run", "ticket:guest-filter", "station:spec-approval"]);
+    expect(run.labels).toEqual(["run", "ticket:guest-filter", "station:build"]);
     expect(run.body).toContain("moved to Ready by Guest");
-    expect(run.comments[0].body).toContain(`Decide on the board: move ${guestFilter} from Spec review to Build`);
-    expect(board.notes(guestFilter).at(-1)).toMatch(/^Spec: Filter rooms by number of guests/);
-    expect(board.notes(guestFilter).at(-1)).toMatch(/Spec sha256: [0-9a-f]{64}/);
+    expect(run.comments[0].body).toContain("The spec gate decides next");
+    expect(run.comments.at(-1)!.body).toMatch(/^Spec approved by the spec gate, sha256 `[0-9a-f]{12}`\. Next station: build\./);
+    expect(run.comments.at(-1)!.body).toMatch(/<!-- factory:approved sha256=[0-9a-f]{64} by=gate:spec -->/);
+    const [shown, approved] = board.notes(guestFilter).slice(-2);
+    expect(shown).toMatch(/^Spec: Filter rooms by number of guests/);
+    expect(shown).toMatch(/Spec sha256: [0-9a-f]{64}/);
+    expect(shown).not.toContain("move the card");
+    expect(approved).toMatch(/^Spec approved by the spec gate \(sha256 [0-9a-f]{12}\)\. Next station: build\.$/);
     expect(specs.map((s) => s.meta.card)).toEqual([guestFilter]);
     // The text comes from tickets/, not from the card.
     expect(calls[0]).toContain("from 1 to 6");
   });
 
+  it("sends an unclear spec to a person in Spec review, with the reasons on the card and on the run issue", async () => {
+    const { f, board, record, guestFilter } = await setup(unclear);
+    board.drag(guestFilter, STATUS.ready);
+    await reconcile(f, guestFilter);
+    expect(record.dispatched).toEqual([]);
+
+    expect(board.status(guestFilter)).toBe(STATUS.specReview);
+    const [run] = record.issues;
+    expect(run.labels).toEqual(["run", "ticket:guest-filter", "station:spec-approval"]);
+    expect(run.comments.at(-1)!.body).toBe(
+      `The spec gate needs a person: 9 choices the ticket leaves open (the limit is 8). Move ${guestFilter} to Build to approve the spec as it is, or to Done to reject it.`,
+    );
+    const [shown, escalated] = board.notes(guestFilter).slice(-2);
+    expect(shown).toContain("To approve this spec, move the card to Build. To reject it, move it to Done.");
+    expect(escalated).toBe("The spec gate needs a person: 9 choices the ticket leaves open (the limit is 8). Move the card to Build to approve the spec as it is, or to Done to reject it.");
+  });
+
+  it("ends the run when the spec has a hard problem", async () => {
+    const { f, board, record, guestFilter } = await setup(async () => ({ output: { ...exampleSpec(), files: [".github/workflows/gates.yml"] }, tokens, stopReason: "end_turn" }));
+    board.drag(guestFilter, STATUS.ready);
+    await reconcile(f);
+
+    expect(record.issues[0]).toMatchObject({ open: false, closedAs: "not_planned" });
+    expect(record.issues[0].labels).toContain("outcome:failed");
+    expect(record.issues[0].comments.at(-1)!.body).toContain("file .github/workflows/gates.yml is outside apps/hotel/");
+    expect(board.status(guestFilter)).toBe(STATUS.done);
+  });
+
   it("approves the spec when a person moves the card from Spec review to Build", async () => {
-    const { f, board, record, guestFilter } = await setup();
+    const { f, board, record, guestFilter } = await setup(unclear);
     board.drag(guestFilter, STATUS.ready);
     await reconcile(f);
     board.drag(guestFilter, STATUS.build, "po-id", "Ana");
@@ -56,13 +93,14 @@ describe("the factory on the board", () => {
     expect(run.comments.at(-1)!.body).toMatch(/<!-- factory:approved sha256=[0-9a-f]{64} by=jira:po-id -->/);
     expect(board.status(guestFilter)).toBe(STATUS.build);
     expect(board.notes(guestFilter).at(-1)).toMatch(/^Spec approved by Ana/);
+    expect(record.dispatched).toEqual([{ workflow: "build.yml", inputs: { run: "10" } }]);
   });
 
   it("refuses the approval when the spec on the card was edited", async () => {
-    const { f, board, record, guestFilter } = await setup();
+    const { f, board, record, guestFilter } = await setup(unclear);
     board.drag(guestFilter, STATUS.ready);
     await reconcile(f);
-    const shown = board.cards.get(guestFilter)!.comments.at(-1)!;
+    const shown = board.cards.get(guestFilter)!.comments.find((c) => SHOWN_SHA.test(c.text))!;
     Object.assign(shown, { text: shown.text.replace("exactly Bellver and Badia show", "every room shows"), updated: stamp() });
     board.drag(guestFilter, STATUS.build, "po-id", "Ana");
     await reconcile(f);
@@ -73,7 +111,7 @@ describe("the factory on the board", () => {
   });
 
   it("rejects the spec when a person moves the card to Done, then takes the card waiting in Ready", async () => {
-    const { f, board, record, guestFilter, usdPrices } = await setup();
+    const { f, board, record, guestFilter, usdPrices } = await setup(unclear);
     board.drag(guestFilter, STATUS.ready);
     await reconcile(f);
     board.drag(usdPrices, STATUS.ready);
@@ -91,7 +129,7 @@ describe("the factory on the board", () => {
   });
 
   it("takes the card waiting in Ready after a rejection, though GitHub and Jira still list what it just changed", async () => {
-    const { f, board, record, guestFilter, usdPrices } = await setup();
+    const { f, board, record, guestFilter, usdPrices } = await setup(unclear);
     board.drag(guestFilter, STATUS.ready);
     await reconcile(f);
     board.drag(usdPrices, STATUS.ready);
@@ -109,7 +147,7 @@ describe("the factory on the board", () => {
   });
 
   it("puts back a card a person dragged to a station the factory owns", async () => {
-    const { f, board, record, guestFilter, stayTotal } = await setup();
+    const { f, board, record, guestFilter, stayTotal } = await setup(unclear);
     board.drag(stayTotal, STATUS.gates);
     board.drag(guestFilter, STATUS.ready);
     await reconcile(f);
@@ -124,7 +162,7 @@ describe("the factory on the board", () => {
   });
 
   it("leaves a card it just took where it is, and waits, when the next look gets GitHub's list from before the run", async () => {
-    const { f, board, record, guestFilter, usdPrices } = await setup();
+    const { f, board, record, guestFilter, usdPrices } = await setup(unclear);
     record.freezeListing();
     board.drag(guestFilter, STATUS.ready);
     await reconcile(f);
@@ -138,7 +176,7 @@ describe("the factory on the board", () => {
   });
 
   it("counts an approval once when the next look gets GitHub's list from before it", async () => {
-    const { f, board, record, guestFilter } = await setup();
+    const { f, board, record, guestFilter } = await setup(unclear);
     board.drag(guestFilter, STATUS.ready);
     await reconcile(f);
     record.freezeListing();
@@ -157,7 +195,7 @@ describe("the factory on the board", () => {
     board.drag(guestFilter, STATUS.ready);
     await reconcile(f, guestFilter);
 
-    expect(board.status(guestFilter)).toBe(STATUS.specReview);
+    expect(board.status(guestFilter)).toBe(STATUS.build);
   });
 
   it("puts back a dragged card once, though Jira's search still shows it where the person left it", async () => {

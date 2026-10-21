@@ -45,7 +45,7 @@ export function renderSpecComment(envelope: Envelope): string {
 
 function howToDecide(meta: SpecMeta): string {
   return meta.card
-    ? `Decide on the board: move ${meta.card} from Spec review to Build to approve it, or to Done to reject it.`
+    ? `The spec gate decides next: it approves a clear spec, or sends it to ${meta.card} in Spec review for a person.`
     : "Decide on the board: move the run's card from Spec review to Build to approve it, or to Done to reject it.";
 }
 
@@ -60,8 +60,11 @@ function stationLine(meta: SpecMeta): string {
 /** The card shows this line; the approval reads it back to check the card shows the spec on the run issue. */
 export const SHOWN_SHA = /^Spec sha256: ([0-9a-f]{64})$/m;
 
-/** The same spec as a comment on the card, where the product owner reads and decides. */
-export function specAdf(envelope: Envelope, run: { url: string; number: number }): adf.Adf {
+/**
+ * The same spec as a comment on the card, where people read it. Only a spec the spec gate sent to a person
+ * says how to decide on it.
+ */
+export function specAdf(envelope: Envelope, run: { url: string; number: number }, { escalated }: { escalated: boolean }): adf.Adf {
   const { spec, meta } = envelope;
   const { strong, text, inline, lineBreak } = adf;
   const list = (items: string[]) => adf.bullets(items.map((item) => inline(item)));
@@ -77,9 +80,9 @@ export function specAdf(envelope: Envelope, run: { url: string; number: number }
   if (spec.assumptions.length) blocks.push(adf.heading(4, "Assumptions (the ticket does not say; approving the spec approves these)"), list(spec.assumptions));
   if (spec.outOfScope.length) blocks.push(adf.heading(4, "Out of scope"), list(spec.outOfScope));
   blocks.push(adf.heading(4, "Files likely to change"), adf.bullets(spec.files.map((f) => adf.code(f))));
+  blocks.push(adf.rule);
+  if (escalated) blocks.push(adf.paragraph(strong("To approve this spec, move the card to Build. To reject it, move it to Done.")));
   blocks.push(
-    adf.rule,
-    adf.paragraph(strong("To approve this spec, move the card to Build. To reject it, move it to Done.")),
     adf.paragraph(text(`${stationLine(meta)} · `), adf.link(`run #${run.number} on GitHub`, run.url)),
     adf.paragraph(text(`Spec sha256: ${specHash(envelope)}`)),
   );
@@ -106,7 +109,8 @@ export function readSpecComment(body: string): ReadResult {
   const hash = specHash(envelope);
   if (hash !== marker[1]) return { ok: false, reason: "the spec data does not match its hash" };
   if (renderSpecComment(envelope) !== text) return { ok: false, reason: "the comment text was changed after the spec station wrote it" };
-  const problems = validateSpec(envelope.spec);
-  if (problems.length) return { ok: false, reason: `the spec is not valid: ${problems.join("; ")}` };
+  // A soft problem is what a person approves the spec despite; only a hard one makes it unreadable.
+  const { hard } = validateSpec(envelope.spec);
+  if (hard.length) return { ok: false, reason: `the spec is not valid: ${hard.join("; ")}` };
   return { ok: true, envelope, sha256: hash };
 }

@@ -16,3 +16,8 @@ export function exampleSpec(): Spec {
     files: ["apps/hotel/lib/rooms.ts", "apps/hotel/lib/rooms.test.ts", "apps/hotel/components/RoomList.tsx", "apps/hotel/e2e/home.spec.ts"],
   };
 }
+
+/** The same spec with more assumptions than the limit: the spec gate sends it to a person. */
+export function unclearSpec(): Spec {
+  return { ...exampleSpec(), assumptions: Array.from({ length: 9 }, (_, i) => `Assumption ${i + 1}.`) };
+}

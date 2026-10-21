@@ -69,7 +69,7 @@ export async function adoptRun({ root, board, record, project, number }: { root:
   const key = await board.create({ project, ...ticketCard(loadTicket(root, read.envelope.meta.ticket)) });
   await board.move(key, STATUS.specReview);
   await board.link(key, run.url, `Run #${number} on GitHub`);
-  await board.comment(key, specAdf(read.envelope, run));
+  await board.comment(key, specAdf(read.envelope, run, { escalated: true }));
   await record.retitle(number, `${key}: ${run.title}`);
   await record.comment(number, `This run now has a card on the board: [${key}](${board.cardUrl(key)}). The spec is approved or rejected there.`);
   return key;
