@@ -90,7 +90,7 @@ The same ticket, KAN-4, after every fix: Haiku's second build ran out of its 80 
 - The two runs differ in ticket and model, and the agent ran the faster evidence too (6 times), so the agent's drop is not Haiku's alone.
 - Run #27 escalated: `AGENTS.md` tells the agent to run `pnpm --filter hotel e2e`, and its allowed tools refused it. Haiku stopped and asked instead of working around it. Fixed, with a test that every gate in `AGENTS.md` is an allowed tool (PR #28).
 - The rehearsal of the live run (KAN-4, run #27) went through every column: the gates passed on PR #29, the card moved to Merge and was assigned to the Maintainer, and the PR was closed unmerged on purpose; the run failed with "PR #29 was closed without a merge" and the card went to Done. The Vercel preview and its E2E run for the factory's PRs too.
-- The same PR protects `apps/hotel/AGENTS.md` and the hotel's test configs: the agent may not change its own rules or the harness that judges it, and `AGENTS.md` and `implement-ticket` say so.
+- The same PR protects `apps/hotel/AGENTS.md` and the hotel's test configs; the code review then made it an allowlist (below).
 
 ## The board finishes by itself (2026-10-21)
 After the build, nothing moved the card past Gates. Now `Board` also runs when the fast gates finish (`workflow_run`) and when `main` changes (a merge), and it reads each run's PR:
@@ -111,3 +111,15 @@ Each step leaves a marker on the run issue, so a look that gets GitHub's list fr
 - A spec with too many assumptions waits on the card with the reasons. Moving it to Build approves it, and the build starts.
 - The PR belongs to the factory's App, and only the Maintainer can merge it.
 - A change outside `apps/hotel` never reaches the PR.
+
+## Code review (2026-10-21, every PR since #17)
+`/code-review high` found 10 problems; it quoted `CODING_STANDARDS.md` rule 1. Fixed in PR #32, each with a test red before the fix:
+1. "Every gate passed" did not wait for the E2E run on the preview. `GATES` now includes it, and `Board` also runs when `E2E` finishes.
+2. The agent could still change the hotel's `package.json` or a config and turn a gate into a no-op. It now writes only in `app/`, `components/`, `lib/`, `e2e/`, `data/` and `images/` (`WRITABLE`); `AGENTS.md` and `implement-ticket` say so.
+3. A failed assignment killed a valid run. A notice that fails is now logged, and the run goes on.
+4. The gates' and the merge's markers went on the run issue before the card moved, so a failed move was never retried. The marker now goes last.
+5. A failed evidence push said "nothing was published" with the branch already pushed, and a rebuild could not push again. It now says so, and the run branch is pushed with `--force`.
+8. The agent's report counted every `pnpm --filter` command as one.
+10. `fail()` had no marker, so a look with GitHub's lagging list failed a run twice (rule 1).
+
+Left for later: an escalated run at the gates is not looked at again and keeps the factory busy (6); AC-7's phone check in KAN-3's test is skipped after it runs (7); `observe` reads the PRs one after another, and `pull` repeats `pulls` (9).

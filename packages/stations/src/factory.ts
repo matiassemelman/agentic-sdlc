@@ -33,9 +33,17 @@ const PASSES = 5;
 
 const note = (...parts: (adf.Inline | adf.Inline[])[]) => adf.doc(adf.paragraph(...parts));
 
-/** Hands a card to the Maintainer: Jira tells them, and the board shows who the factory waits for. */
+/**
+ * Hands a card to the Maintainer: Jira tells them, and the board shows who the factory waits for. A notice that
+ * fails is logged and the run goes on: the comments on the card still say what waits.
+ */
 async function askMaintainer(f: Factory, key: string): Promise<void> {
-  if (f.maintainer) await f.board.assign(key, f.maintainer);
+  if (!f.maintainer) return;
+  try {
+    await f.board.assign(key, f.maintainer);
+  } catch (error) {
+    f.log?.(`${key}: could not assign the card to the Maintainer (${describeFailure(error)})`);
+  }
 }
 
 /** Whether the run issue already says this step happened: GitHub's list may still show the run from before it. */
@@ -212,25 +220,31 @@ async function startBuild(f: Factory, run: number): Promise<void> {
 
 /** Ends a run that failed, on both sides, with a reason a person can act on. */
 async function fail(f: Factory, run: Run, card: Observed | null, reason: string): Promise<undefined> {
-  f.log?.(`run #${run.number} failed: ${reason}`);
-  await f.record.comment(run.number, `The run stops here.\n\n${reason}\n\n[Workflow run](${f.runUrl})`);
+  // The marker goes last, so a failure on the way is done again on the next look, and the next look of a
+  // process that gets GitHub's list from before the close does nothing twice.
+  const marker = "<!-- factory:failed -->";
+  if (!(await done(f, run.number, marker))) {
+    f.log?.(`run #${run.number} failed: ${reason}`);
+    if (card) {
+      await f.board.comment(card.key, note(adf.text(`Run #${run.number} stopped: ${reason} `), adf.link("Workflow run", f.runUrl)));
+      if (card.status !== STATUS.done) await f.board.move(card.key, STATUS.done);
+      await askMaintainer(f, card.key);
+    }
+    await f.record.comment(run.number, `The run stops here.\n\n${reason}\n\n[Workflow run](${f.runUrl})\n${marker}`);
+  }
   await f.record.relabel(run.number, { add: ["outcome:failed"], remove: run.station ? [run.station] : [] });
   await f.record.close(run.number, "not_planned");
-  if (card) {
-    await f.board.comment(card.key, note(adf.text(`Run #${run.number} stopped: ${reason} `), adf.link("Workflow run", f.runUrl)));
-    if (card.status !== STATUS.done) await f.board.move(card.key, STATUS.done);
-    await askMaintainer(f, card.key);
-  }
 }
 
 /** The PR passed every gate: it waits for the Maintainer, who reviews the evidence and merges. */
 async function gatesPassed(f: Factory, run: Run, card: Observed, pull: RunPull): Promise<undefined> {
   const marker = `<!-- factory:gates-passed pr=${pull.number} -->`;
+  // The marker goes last: if the move fails, the next look moves the card and assigns the Maintainer again.
   if (!(await done(f, run.number, marker))) {
-    await f.record.comment(run.number, `PR #${pull.number} passed the gates: ${GATES.join("; ")}. Next: the Maintainer reviews and merges it.\n${marker}`);
     await f.board.move(card.key, STATUS.merge);
     await f.board.comment(card.key, note(adf.text("Every gate passed. The Maintainer reviews the evidence on "), adf.link(`PR #${pull.number}`, pull.url), adf.text(" and merges it to production.")));
     await askMaintainer(f, card.key);
+    await f.record.comment(run.number, `PR #${pull.number} passed the gates: ${GATES.join("; ")}. Next: the Maintainer reviews and merges it.\n${marker}`);
     f.log?.(`${card.key}: gates passed on PR #${pull.number}, waiting for the Maintainer`);
   }
   await f.record.relabel(run.number, { add: ["station:maintainer"], remove: ["station:gates"] });
@@ -241,9 +255,9 @@ async function gatesFailed(f: Factory, run: Run, card: Observed, pull: RunPull):
   const marker = `<!-- factory:gates-failed pr=${pull.number} -->`;
   const failed = pull.gates.failed.join("; ");
   if (!(await done(f, run.number, marker))) {
-    await f.record.comment(run.number, `The gates need a person: ${failed} failed on PR #${pull.number}.\n${marker}`);
     await f.board.comment(card.key, note(adf.text(`The gates need a person: ${failed} failed on `), adf.link(`PR #${pull.number}`, pull.url), adf.text(".")));
     await askMaintainer(f, card.key);
+    await f.record.comment(run.number, `The gates need a person: ${failed} failed on PR #${pull.number}.\n${marker}`);
     f.log?.(`${card.key}: gates failed on PR #${pull.number} (${failed})`);
   }
   await f.record.relabel(run.number, { add: ["escalated"] });
@@ -253,8 +267,8 @@ async function gatesFailed(f: Factory, run: Run, card: Observed, pull: RunPull):
 async function merged(f: Factory, run: Run, card: Observed, pull: RunPull): Promise<undefined> {
   const marker = `<!-- factory:merged pr=${pull.number} -->`;
   if (!(await done(f, run.number, marker))) {
-    await f.record.comment(run.number, `PR #${pull.number} was merged. The run is done; production deploys from main.\n${marker}`);
     await f.board.comment(card.key, note(adf.link(`PR #${pull.number}`, pull.url), adf.text(" was merged. The change goes to production from main.")));
+    await f.record.comment(run.number, `PR #${pull.number} was merged. The run is done; production deploys from main.\n${marker}`);
     f.log?.(`${card.key}: PR #${pull.number} merged, run #${run.number} done`);
   }
   await f.record.relabel(run.number, { add: ["outcome:merged"], remove: run.station ? [run.station] : [] });
