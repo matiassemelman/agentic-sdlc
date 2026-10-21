@@ -24,7 +24,7 @@ jobs:
   seed:
     name: Check the columns, add the prepared tickets
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     timeout-minutes: 5
     environment:
       name: factory

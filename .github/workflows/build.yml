@@ -27,7 +27,7 @@ jobs:
   build:
     name: Build run #${{ inputs.run }}
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     timeout-minutes: 45
     environment:
       name: factory

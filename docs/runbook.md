@@ -53,6 +53,10 @@ curl -s -H "Authorization: Bearer $h.$p.$s" -H "Accept: application/vnd.github+j
 
 On 2026-10-20 it answered installation 173586678 with `contents`, `issues` and `pull_requests` at `write`.
 
+## Runners
+
+Every job runs on Ubicloud's managed runners (`runs-on: ubicloud-standard-2`; console https://console.ubicloud.com, GitHub Runners), since 2026-10-21: that day GitHub's own runners left every job of the repository queued for about 15 minutes. Ubicloud's app is installed on this repository only; premium runners are off. To go back, set `runs-on: ubuntu-latest` again and drop `.github/actionlint.yaml`.
+
 ## Lint the workflows
 
 `pnpm lint:workflows` runs the same pinned actionlint as the fast gates (1.7.12, which knows `app-id` but not `client-id`).
