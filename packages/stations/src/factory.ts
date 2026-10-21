@@ -4,7 +4,7 @@ import type { GitHub } from "./github.ts";
 import { HttpError } from "./http.ts";
 import type { Jira } from "./jira.ts";
 import { readOwnWrites } from "./own-writes.ts";
-import { readSpecComment, SHOWN_SHA, specAdf, type Envelope } from "./render.ts";
+import { readSpecComment, SHOWN_SHA, specAdf, specHash, type Envelope } from "./render.ts";
 import { runSpecStation, StationError, type ModelCall } from "./spec-station.ts";
 import { listTicketIds, loadTicket, type Ticket } from "./tickets.ts";
 
@@ -121,7 +121,10 @@ function runBody(ticket: Ticket, card: Observed, cardUrl: string, runUrl: string
   );
 }
 
-/** Takes a card from Ready: opens its run, writes the spec, and puts it in Spec review. */
+/**
+ * Takes a card from Ready: opens its run and writes the spec. The spec gate then approves a clear spec,
+ * which goes on to Build, or sends one the ticket left too open to a person in Spec review.
+ */
 async function take(f: Factory, card: Observed, ticketId: string): Promise<Envelope | undefined> {
   const ticket = loadTicket(f.root, ticketId);
   const issue = await f.record.create({
@@ -136,12 +139,30 @@ async function take(f: Factory, card: Observed, ticketId: string): Promise<Envel
     await f.board.move(card.key, STATUS.spec);
     await f.board.link(card.key, issue.url, `Run #${issue.number} on GitHub`);
     const result = await runSpecStation({ root: f.root, ticketId: ticket.id, issue: issue.number, card: card.key, call: f.call });
+    const escalated = result.soft.length > 0;
     await f.record.comment(issue.number, result.comment);
-    await f.board.comment(card.key, specAdf(result.envelope, issue));
-    await f.record.relabel(issue.number, { add: ["station:spec-approval"], remove: [station] });
-    station = "station:spec-approval";
-    await f.board.move(card.key, STATUS.specReview);
+    await f.board.comment(card.key, specAdf(result.envelope, issue, { escalated }));
     f.log?.(`${card.key}: spec posted, $${result.envelope.meta.costUsd.toFixed(3)}`);
+    if (escalated) {
+      const reasons = result.soft.join("; ");
+      await f.record.relabel(issue.number, { add: ["station:spec-approval"], remove: [station] });
+      station = "station:spec-approval";
+      await f.board.move(card.key, STATUS.specReview);
+      await f.record.comment(issue.number, `The spec gate needs a person: ${reasons}. Move ${card.key} to Build to approve the spec as it is, or to Done to reject it.`);
+      await f.board.comment(card.key, note(adf.text(`The spec gate needs a person: ${reasons}. Move the card to Build to approve the spec as it is, or to Done to reject it.`)));
+      f.log?.(`${card.key}: spec sent to a person (${reasons})`);
+    } else {
+      const sha = specHash(result.envelope);
+      await f.record.comment(
+        issue.number,
+        `Spec approved by the spec gate, sha256 \`${sha.slice(0, 12)}\`. Next station: build.\n<!-- factory:approved sha256=${sha} by=gate:spec -->`,
+      );
+      await f.record.relabel(issue.number, { add: ["station:build"], remove: [station] });
+      station = "station:build";
+      await f.board.move(card.key, STATUS.build);
+      await f.board.comment(card.key, note(adf.text("Spec approved by the spec gate (sha256 "), adf.code(sha.slice(0, 12)), adf.text("). Next station: build.")));
+      f.log?.(`${card.key}: spec approved by the spec gate`);
+    }
     return result.envelope;
   } catch (error) {
     if (!(error instanceof StationError)) console.error(error);

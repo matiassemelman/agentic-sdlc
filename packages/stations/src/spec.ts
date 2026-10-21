@@ -61,9 +61,13 @@ export const specSchema = {
 
 const FILE = /^apps\/hotel\/[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;
 
-/** Every problem with a spec that the schema cannot catch. An empty list means the spec may go to a person. */
-export function validateSpec(spec: Spec): string[] {
+/**
+ * Every problem with a spec that the schema cannot catch, by weight. A hard one means the spec cannot be
+ * built. A soft one means the ticket left too much open: a person may still accept the spec as it is.
+ */
+export function validateSpec(spec: Spec): { hard: string[]; soft: string[] } {
   const problems: string[] = [];
+  const soft: string[] = [];
   const filled = (value: string, name: string, max: number = LIMITS.field) => {
     if (!value.trim()) problems.push(`${name} is empty`);
     else if (value.length > max) problems.push(`${name} is longer than ${max} characters`);
@@ -91,7 +95,7 @@ export function validateSpec(spec: Spec): string[] {
     filled(s.show, `empty state ${i + 1} show`);
   });
   for (const [name, items] of [["assumptions", spec.assumptions], ["outOfScope", spec.outOfScope]] as const) {
-    if (items.length > LIMITS.items) problems.push(`${name} has more than ${LIMITS.items} items`);
+    if (items.length > LIMITS.items) soft.push(`${name} has more than ${LIMITS.items} items`);
     items.forEach((item, i) => filled(item, `${name} ${i + 1}`));
   }
 
@@ -102,5 +106,5 @@ export function validateSpec(spec: Spec): string[] {
     if (!FILE.test(file) || file.split("/").includes("..")) problems.push(`file ${file} is outside apps/hotel/`);
   if (new Set(spec.files).size !== spec.files.length) problems.push("files has duplicates");
 
-  return problems;
+  return { hard: problems, soft };
 }

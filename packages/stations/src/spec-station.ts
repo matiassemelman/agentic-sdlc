@@ -25,7 +25,7 @@ export async function runSpecStation({ root, ticketId, issue, card, call, clock 
   card?: string;
   call: ModelCall;
   clock?: () => number;
-}): Promise<{ envelope: Envelope; comment: string }> {
+}): Promise<{ envelope: Envelope; comment: string; soft: string[] }> {
   const ticket = loadTicket(root, ticketId);
   const read = (path: string) => readFileSync(join(root, path), "utf8");
   const { system, user } = buildSpecPrompt({
@@ -45,13 +45,14 @@ export async function runSpecStation({ root, ticketId, issue, card, call, clock 
   if (result.stopReason === "refusal") throw new StationError("The model declined to write this spec.");
   if (!result.output || typeof result.output !== "object") throw new StationError("The model returned no spec.");
   const spec = result.output as Spec;
-  const problems = validateSpec(spec);
-  if (problems.length) throw new StationError(`The spec did not pass validation:\n${problems.map((p) => `- ${p}`).join("\n")}`);
+  // A soft problem does not end the run: the spec gate sends the spec to a person with it.
+  const { hard, soft } = validateSpec(spec);
+  if (hard.length) throw new StationError(`The spec did not pass validation:\n${hard.map((p) => `- ${p}`).join("\n")}`);
 
   const envelope: Envelope = {
     version: 1,
     spec,
     meta: { issue, ...(card ? { card } : {}), ticket: ticket.id, model, tokens: result.tokens, costUsd: costUsd(model, result.tokens), seconds },
   };
-  return { envelope, comment: renderSpecComment(envelope) };
+  return { envelope, comment: renderSpecComment(envelope), soft };
 }

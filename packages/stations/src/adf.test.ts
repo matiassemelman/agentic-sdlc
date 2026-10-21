@@ -25,7 +25,7 @@ describe("ADF", () => {
   });
 
   it("shows the spec on the card with the hash the approval checks", () => {
-    const shown = adfText(specAdf(envelope(), { url: "https://github.com/o/r/issues/12", number: 12 }));
+    const shown = adfText(specAdf(envelope(), { url: "https://github.com/o/r/issues/12", number: 12 }, { escalated: true }));
     expect(shown).toContain("AC-2 (e2e)\nGiven the rooms in rooms.json\nWhen the visitor chooses 3 guests\nThen exactly Bellver and Badia show");
     expect(shown).toContain("To approve this spec, move the card to Build. To reject it, move it to Done.");
     expect(shown).toContain("4,200 tokens in (3,000 from cache) · 900 out · $0.031 · 21 s · run #12 on GitHub");
