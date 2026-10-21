@@ -13,17 +13,20 @@ export type Spec = {
 const text = (description: string) => ({ type: "string", description }) as const;
 const list = (description: string) => ({ type: "array", description, items: { type: "string" } }) as const;
 
+/** The limits validateSpec enforces. The schema's descriptions state them, since the model reads only those. */
+const LIMITS = { title: 80, field: 400, summary: 700, criteria: [2, 8], files: [1, 12], items: 8 } as const;
+
 /** The JSON schema the model must follow (structured outputs). Limits the schema cannot express live in validateSpec. */
 export const specSchema = {
   type: "object",
   additionalProperties: false,
   required: ["title", "summary", "criteria", "emptyStates", "assumptions", "outOfScope", "files"],
   properties: {
-    title: text("The change in a few words, as the visitor would name it. At most 80 characters."),
-    summary: text("One short paragraph: what changes for the visitor, in plain words."),
+    title: text(`The change in a few words, as the visitor would name it. At most ${LIMITS.title} characters.`),
+    summary: text(`One short paragraph: what changes for the visitor, in plain words. At most ${LIMITS.summary} characters.`),
     criteria: {
       type: "array",
-      description: "2 to 8 acceptance criteria, numbered AC-1, AC-2, ... in order.",
+      description: `${LIMITS.criteria[0]} to ${LIMITS.criteria[1]} acceptance criteria, numbered AC-1, AC-2, ... in order.`,
       items: {
         type: "object",
         additionalProperties: false,
@@ -47,13 +50,15 @@ export const specSchema = {
         properties: { when: text("The situation."), show: text("The exact text or state the visitor sees.") },
       },
     },
-    assumptions: list("Choices the spec makes where the ticket is silent. The product owner approves these too."),
-    outOfScope: list("What a reader might expect from this ticket that the change will not do."),
-    files: list("Files under apps/hotel/ the change will add or modify, tests included."),
+    assumptions: list(
+      `Choices the spec makes where the ticket is silent. The product owner approves these too. At most ${LIMITS.items}: ` +
+        "the choices that change what the visitor sees or what a test asserts.",
+    ),
+    outOfScope: list(`What a reader might expect from this ticket that the change will not do. At most ${LIMITS.items}.`),
+    files: list(`${LIMITS.files[0]} to ${LIMITS.files[1]} files under apps/hotel/ the change will add or modify, tests included.`),
   },
 } as const;
 
-const LIMITS = { title: 80, field: 400, summary: 700, criteria: [2, 8], files: [1, 12], items: 8 } as const;
 const FILE = /^apps\/hotel\/[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;
 
 /** Every problem with a spec that the schema cannot catch. An empty list means the spec may go to a person. */

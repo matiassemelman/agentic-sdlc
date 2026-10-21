@@ -1,5 +1,7 @@
 # STAGE-001-003: The Jira board, with prepared tickets
 
+**Done 2026-10-20.** Closed after the live test and its fixes (PRs #9, #10, #12, #14 and the closing docs). The design changed at the close: people on the loop ([ADR 0001](../adr/0001-people-on-the-loop.md)), so the product owner's moves below become escalations in STAGE-001-004.
+
 ## Decisions (Matias, 2026-10-20)
 - **D1. Roles:** the board (Jira) is where people see the work and decide. GitHub is where the factory works and keeps its record.
   - Each side writes only its own data. The board sends decisions; the factory sends station moves, comments and links.
@@ -103,6 +105,9 @@
   - Fix: `messages.create` (the same request, as the SDK's source shows) and `answerOf`. It joins the text blocks and leaves a cut-off or a refusal to the station. Any other broken answer says its stop reason, its length, its blocks and its tokens. The output limit goes from 4096 to 8192, since a longer ticket can need more.
   - The failure path itself held: #13 closed with `outcome:failed` and KAN-2 went to Done, with the reason on both.
 - **A Spanish-speaking product owner reads "Listo" and "Finalizada"** where the card says Ready and Done. Column names are free text and are not translated, so the columns fix this on the board.
+
+- **The spec station refused KAN-2's spec** (run #15): more than 8 assumptions. The limit was enforced but never told to the model, whose only view of the rules is the schema's descriptions. They now state every list limit, taken from `LIMITS`, with a test. Under ADR 0001 such a spec escalates to a person instead of ending the run (STAGE-001-004).
+- **Not checked live, left for STAGE-001-004:** the refusal of an approval when the spec on the card was edited, and a rejection's pass taking the next card. Unit tests cover both, with lagging listings. The approval flow changes with the spec gate, so they are checked live there.
 
 ## Review (2026-10-20)
 `/code-review high` of PRs #9 and #10 and the listing-lag fix. Each finding was checked against the code before it was fixed, and each fix has a test that fails without it:
