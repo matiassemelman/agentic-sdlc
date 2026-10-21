@@ -4,7 +4,7 @@ import { agentReport, commandName, type Message } from "./agent-report.ts";
 // The shape of claude-code-action's execution file: the Agent SDK's messages, the result last.
 const bash = (command: string) => ({ type: "tool_use", name: "Bash", input: { command } });
 const messages: Message[] = [
-  { type: "system", subtype: "init" },
+  { type: "system", subtype: "init", model: "claude-haiku-5-5" },
   { type: "assistant", message: { content: [{ type: "text", text: "Reading the spec." }, { type: "tool_use", name: "Read", input: { file_path: ".factory/envelope.json" } }] } },
   { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "1", content: "SECRET-LOOKING OUTPUT" }] } },
   { type: "assistant", message: { content: [bash("pnpm test"), bash("pnpm --filter hotel exec playwright test e2e/home.spec.ts")] } },
@@ -16,7 +16,7 @@ const messages: Message[] = [
 describe("where the build agent's time went", () => {
   it("splits the time between the model and the tools, with the cost and what ran how often", () => {
     expect(agentReport(messages, "19")).toEqual([
-      "run #19: agent 800 s, 41 turns, $2.35: model 480 s (60%), tools 320 s (40%)",
+      "run #19: agent (claude-haiku-5-5) 800 s, 41 turns, $2.35: model 480 s (60%), tools 320 s (40%)",
       "run #19: agent ran 2× run-evidence, 1× Read, 1× pnpm test, 1× playwright test",
     ]);
   });

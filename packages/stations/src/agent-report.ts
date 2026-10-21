@@ -30,6 +30,7 @@ export function commandName(command: string): string {
 /** The agent's run in two or three lines: total, model and tool time, cost, and what it ran how often. */
 export function agentReport(messages: Message[], run: string): string[] {
   const result = messages.findLast((m) => m.type === "result");
+  const model = messages.find((m) => m.type === "system" && typeof m.model === "string")?.model as string | undefined;
   const counts = new Map<string, number>();
   for (const m of messages) {
     if (m.type !== "assistant" || !Array.isArray(m.message?.content)) continue;
@@ -42,11 +43,11 @@ export function agentReport(messages: Message[], run: string): string[] {
   const lines: string[] = [];
   if (result?.duration_ms) {
     const total = result.duration_ms / 1000;
-    const model = (result.duration_api_ms ?? 0) / 1000;
+    const api = (result.duration_api_ms ?? 0) / 1000;
     const pct = (s: number) => `${Math.round((100 * s) / total)}%`;
     lines.push(
-      `run #${run}: agent ${Math.round(total)} s, ${result.num_turns ?? "?"} turns, $${(result.total_cost_usd ?? 0).toFixed(2)}: ` +
-        `model ${Math.round(model)} s (${pct(model)}), tools ${Math.round(total - model)} s (${pct(total - model)})`,
+      `run #${run}: agent${model ? ` (${model})` : ""} ${Math.round(total)} s, ${result.num_turns ?? "?"} turns, $${(result.total_cost_usd ?? 0).toFixed(2)}: ` +
+        `model ${Math.round(api)} s (${pct(api)}), tools ${Math.round(total - api)} s (${pct(total - api)})`,
     );
   } else lines.push(`run #${run}: agent left no result (it was stopped before it finished)`);
   const ran = [...counts].sort((a, b) => b[1] - a[1]).map(([name, n]) => `${n}× ${name}`);
