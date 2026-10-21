@@ -60,7 +60,28 @@ Where the App's key and installation live, and how to check them: `docs/runbook.
   - The factory's own evidence run, the App token and `publish` run even when the agent failed:
     - a change outside `apps/hotel`, a `blocked.md`, no change, or an agent that did not finish goes to a person;
     - red evidence opens a draft PR and goes to a person too.
-- **Not yet:** the ruleset on `main` and `CODEOWNERS`, the Acceptance column, and the first live run (it needs the App).
+- **Protection (2026-10-21):** `.github/CODEOWNERS` (`* @matiassemelman`) and the ruleset "main: reviewed and gated" (id 25544547):
+  - a PR, with one approval from a code owner; stale approvals are dismissed on push;
+  - the fast gates, from GitHub Actions only;
+  - no force-push or deletion;
+  - the admin may bypass it only through a PR (`gh pr merge --admin`), for his own PRs.
+- **Not yet:** the Acceptance column.
+
+## Live runs (2026-10-20 and 21, KAN-3, run #19)
+- **Board:** KAN-3 to Ready (moved through the Atlassian MCP, as Matias) → run #19 opened → spec posted ($0.067) → approved by the spec gate → build started. The webhook, the relay and the columns worked; the App's install was checked with a JWT (`docs/runbook.md`).
+- **Build 1** stopped at the agent: `claude-code-action` refuses a workflow started by `github-actions[bot]`, and Board starts `build.yml` with `GITHUB_TOKEN`. Fixed with `allowed_bots: github-actions[bot]` (PR #20). The run escalated to a person, as designed.
+- **Build 2** (18 min) was green: every criterion red on `main` and green with the change, a screenshot per e2e criterion on desktop and a 375px phone. `publish` refused it: `git()` trims its output, so ` M apps/hotel/app/globals.css` lost its leading space and became `pps/hotel/...`, outside the hotel. Fixed with `changedFiles`, tested on git's real output (PR #21).
+- **Build 3:** running (Actions run 39596673520).
+
+## The board finishes by itself (2026-10-21)
+After the build, nothing moved the card past Gates. Now `Board` also runs when the fast gates finish (`workflow_run`) and when `main` changes (a merge), and it reads each run's PR:
+- every gate passed (`GATES` in `board.ts`): the run goes to `station:maintainer`, the card to Merge, assigned to the Maintainer;
+- a gate failed: the run is escalated, the card stays in Gates, assigned to the Maintainer;
+- the PR merged: the run is closed as completed (`outcome:merged`) and the card goes to Done;
+- the PR closed without a merge: the run fails and the card goes to Done.
+Each step leaves a marker on the run issue, so a look that gets GitHub's list from before it does nothing twice (each test is red without its marker).
+
+**How a person hears about it:** every escalation (spec gate, build, gates, a failed run) and every PR waiting for the merge assigns the card to the Maintainer (`JIRA_MAINTAINER_ID`, a variable of the `factory` environment). Jira tells them by mail and in its notifications, and the board shows their avatar on the card. Before this, an escalation was only a comment no one was told about.
 
 ## Done when
 - A prepared ticket with a clear spec goes from Ready to an open PR with no person:

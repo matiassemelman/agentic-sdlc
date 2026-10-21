@@ -3,6 +3,10 @@ import { send, type Fetch, type Wait } from "./http.ts";
 /** A run's issue on GitHub. Its title starts with the key of its card on the board. */
 export type RunIssue = { number: number; title: string; key: string | null; labels: string[]; open: boolean; createdAt: string; url: string };
 export type IssueComment = { author: string; body: string };
+/** A run's pull request, open or not, and the commit its gates ran on. */
+export type Pull = { number: number; url: string; state: "open" | "merged" | "closed"; sha: string };
+/** A check GitHub Actions reported on a commit. */
+export type Check = { name: string; status: string; conclusion: string | null };
 
 const KEY = /^([A-Z][A-Z0-9]*-\d+): /;
 
@@ -110,6 +114,29 @@ export class GitHub {
     const owner = this.repo.split("/")[0];
     const raw = await this.call<{ number: number; html_url: string }[]>(`looking for a PR from ${branch}`, "GET", `/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`);
     return raw.map((p) => ({ number: p.number, url: p.html_url }));
+  }
+
+  /** The newest pull request from a branch of this repository, open, merged or closed; null when there is none. */
+  async pull(branch: string): Promise<Pull | null> {
+    const owner = this.repo.split("/")[0];
+    const raw = await this.call<{ number: number; html_url: string; state: string; merged_at: string | null; head: { sha: string } }[]>(
+      `reading the PR from ${branch}`,
+      "GET",
+      `/pulls?state=all&head=${encodeURIComponent(`${owner}:${branch}`)}&per_page=10`,
+    );
+    const pr = raw.sort((a, b) => b.number - a.number)[0];
+    if (!pr) return null;
+    return { number: pr.number, url: pr.html_url, state: pr.merged_at ? "merged" : pr.state === "open" ? "open" : "closed", sha: pr.head.sha };
+  }
+
+  /** The latest run of each check GitHub Actions reported on a commit; other apps' checks are left out. */
+  async checks(sha: string): Promise<Check[]> {
+    const raw = await this.call<{ check_runs: { name: string; status: string; conclusion: string | null; app?: { slug: string } }[] }>(
+      `reading the checks of ${sha.slice(0, 7)}`,
+      "GET",
+      `/commits/${sha}/check-runs?filter=latest&per_page=100`,
+    );
+    return raw.check_runs.filter((c) => c.app?.slug === "github-actions").map((c) => ({ name: c.name, status: c.status, conclusion: c.conclusion }));
   }
 
   async openPull({ title, branch, body, draft }: { title: string; branch: string; body: string; draft: boolean }): Promise<{ number: number; url: string }> {

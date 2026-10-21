@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { changedFiles, prepareBuild, publishBuild, type Built, type Push } from "./build.ts";
-import { clients, required } from "./env.ts";
+import { clients, maintainer, required } from "./env.ts";
 import { GitHub } from "./github.ts";
 
 const { positionals, values } = parseArgs({ allowPositionals: true, options: { run: { type: "string" } } });
@@ -94,6 +94,6 @@ const push: Push = {
 
 const { board } = clients();
 await publishBuild(
-  { record, board, pulls: new GitHub({ token, repo }), push, runUrl: required("RUN_URL"), log },
+  { record, board, pulls: new GitHub({ token, repo }), push, runUrl: required("RUN_URL"), maintainer: maintainer(), log },
   { run: ready.run, branch: ready.branch, sha256: ready.sha256, built },
 );

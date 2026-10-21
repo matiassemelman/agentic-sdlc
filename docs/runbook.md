@@ -15,6 +15,10 @@ Lookups that cost more than one call to find. Run the commands from the reposito
   - the others are named after their status (`Spec review`, `Build`, `Gates`, `Acceptance`, `Merge`, `Spec`, `Done`).
 - **Retry an escalated build** (retries come in STAGE-001-009): `gh issue edit <n> --remove-label escalated`, then `gh workflow run build.yml -f run=<n>`. `prepare` builds a run only when it is at the build station, not escalated, approved for its hash and without a PR.
 
+## When the factory needs a person
+
+It assigns the card to the Maintainer (`JIRA_MAINTAINER_ID`, Matias's account `60b2926f07df1c0069b15b8a`): Jira tells him by mail and in its notifications. On GitHub, `gh issue list --label escalated` lists the runs waiting for a person.
+
 ## Jira
 
 - Site `https://matiassworkspace-34483436.atlassian.net`, cloud id `5e19d030-059b-4568-8a74-97843fe6853a`, space `KAN`, board id 1.

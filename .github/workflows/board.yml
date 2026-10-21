@@ -1,7 +1,9 @@
 # The factory's single entry. The relay in apps/factory dispatches it whenever a card changes status on
-# the board. It reads the board and GitHub and brings them into line: it takes the next card from Ready,
-# writes its spec, and applies the product owner's approval or rejection. The key it gets is only a
-# hint; it never acts on what the message says, only on what Jira and GitHub show.
+# the board, and GitHub starts it when a PR's gates finish and when main changes (a merge). It reads the
+# board and GitHub and brings them into line: it takes the next card from Ready, writes its spec, applies
+# the product owner's approval or rejection, moves a PR that passed its gates to the Maintainer, and closes
+# the run when its PR is merged. The key it gets is only a hint; it never acts on what an event says, only
+# on what Jira and GitHub show.
 name: Board
 
 on:
@@ -11,10 +13,19 @@ on:
         description: Card that changed (a hint; the whole board is checked)
         required: false
         type: string
+  # Runs from main with main's code; it reads only the gates' results, never the PR's code.
+  workflow_run:
+    workflows: [Fast gates]
+    types: [completed]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
   issues: write
+  # A run's PR and the checks on it.
+  pull-requests: read
+  checks: read
   # Starts the build station after an approval (workflow_dispatch is the one event GITHUB_TOKEN may start).
   actions: write
 
@@ -43,6 +54,7 @@ jobs:
       JIRA_PROJECT: ${{ vars.JIRA_PROJECT }}
       JIRA_EMAIL: ${{ vars.JIRA_EMAIL }}
       JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      JIRA_MAINTAINER_ID: ${{ vars.JIRA_MAINTAINER_ID }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v5

@@ -5,7 +5,7 @@ import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { specModelCall } from "./anthropic.ts";
-import { clients, required } from "./env.ts";
+import { clients, maintainer, required } from "./env.ts";
 import { reconcile } from "./factory.ts";
 
 const { values } = parseArgs({ options: { key: { type: "string" }, out: { type: "string", default: "out" } } });
@@ -30,7 +30,7 @@ mkdirSync(out, { recursive: true });
 try {
   const { board, record, project } = clients();
   const specs = await reconcile(
-    { root: resolve(import.meta.dirname, "../../.."), project, board, record, call: specModelCall(), runUrl: required("RUN_URL"), log },
+    { root: resolve(import.meta.dirname, "../../.."), project, board, record, call: specModelCall(), runUrl: required("RUN_URL"), maintainer: maintainer(), log },
     hint,
   );
   for (const envelope of specs) writeFileSync(join(out, `envelope-${envelope.meta.issue}.json`), `${JSON.stringify(envelope, null, 2)}\n`);

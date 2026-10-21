@@ -105,6 +105,7 @@ jobs:
           JIRA_PROJECT: ${{ vars.JIRA_PROJECT }}
           JIRA_EMAIL: ${{ vars.JIRA_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_MAINTAINER_ID: ${{ vars.JIRA_MAINTAINER_ID }}
         run: node packages/stations/src/run-build.ts publish --run "$RUN"
 
       - name: Keep the evidence

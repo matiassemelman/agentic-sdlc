@@ -1,14 +1,14 @@
 // In-memory stand-ins for the board (Jira) and the record (GitHub), shared by the tests.
 import { adfText, type Adf } from "./adf.ts";
 import { STATUS } from "./board.ts";
-import { keyOf, relabeled, type IssueComment, type RunIssue } from "./github.ts";
+import { keyOf, relabeled, type Check, type IssueComment, type Pull, type RunIssue } from "./github.ts";
 import type { Card, CardComment, Move } from "./jira.ts";
 
 let tick = 0;
 /** Timestamps that always move forward, so histories sort the way they happened. */
 export const stamp = () => new Date(Date.UTC(2026, 9, 20, 12, 0, tick++)).toISOString();
 
-type Stored = { card: Card; moves: Move[]; comments: CardComment[]; links: string[] };
+type Stored = { card: Card; moves: Move[]; comments: CardComment[]; links: string[]; assignee?: string };
 
 export class FakeBoard {
   readonly cards = new Map<string, Stored>();
@@ -49,6 +49,12 @@ export class FakeBoard {
   async link(key: string, url: string) {
     this.cards.get(key)!.links.push(url);
   }
+  async assign(key: string, accountId: string) {
+    this.cards.get(key)!.assignee = accountId;
+  }
+  assignee(key: string) {
+    return this.cards.get(key)!.assignee;
+  }
   async statusesByType() {
     return [{ type: "Task", subtask: false, statuses: this.statusNames }];
   }
@@ -83,6 +89,9 @@ type Issue = RunIssue & { body: string; comments: IssueComment[]; closedAs?: str
 export class FakeRecord {
   readonly issues: Issue[] = [];
   readonly dispatched: { workflow: string; inputs: Record<string, string> }[] = [];
+  /** Pull requests by branch, and the checks on each commit, as GitHub would report them. */
+  readonly pullsByBranch = new Map<string, Pull>();
+  readonly checksBySha = new Map<string, Check[]>();
   private next = 10;
   private listing?: Issue[];
 
@@ -117,6 +126,13 @@ export class FakeRecord {
   }
   async retitle(number: number, title: string) {
     Object.assign(this.get(number), { title, key: keyOf(title) });
+  }
+  async pull(branch: string) {
+    const pull = this.pullsByBranch.get(branch);
+    return pull ? { ...pull } : null;
+  }
+  async checks(sha: string) {
+    return (this.checksBySha.get(sha) ?? []).map((c) => ({ ...c }));
   }
   /** GitHub's issue list lags behind writes: from now on it answers with the issues as they are now. */
   freezeListing() {

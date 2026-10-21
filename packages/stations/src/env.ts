@@ -8,6 +8,9 @@ export function required(name: string): string {
   return value;
 }
 
+/** The Maintainer's Jira account id: cards that need a person are assigned to it. Optional. */
+export const maintainer = () => process.env.JIRA_MAINTAINER_ID?.trim() || undefined;
+
 /** The board and the record, as the workflow configures them. */
 export function clients(): { board: Jira; record: GitHub; project: string } {
   return {

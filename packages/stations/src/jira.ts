@@ -133,6 +133,11 @@ export class Jira {
     return page.comments.map((c) => ({ id: c.id, author: c.author?.accountId ?? "", created: c.created, updated: c.updated, text: adfText(c.body) }));
   }
 
+  /** Assigns the card to an account. Jira tells that person by mail and in its notifications, and the board shows them on the card. */
+  async assign(key: string, accountId: string): Promise<void> {
+    await this.call(`assigning ${key}`, "PUT", `/issue/${encodeURIComponent(key)}/assignee`, { accountId });
+  }
+
   /** Adds a link to the card. The same url twice updates the link instead of adding another. */
   async link(key: string, url: string, title: string): Promise<void> {
     await this.call(`linking ${key}`, "POST", `/issue/${encodeURIComponent(key)}/remotelink`, { globalId: url, object: { url, title } });
