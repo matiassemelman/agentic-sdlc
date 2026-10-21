@@ -39,7 +39,7 @@ jobs:
   reconcile:
     name: Bring the board and GitHub into line
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     timeout-minutes: 10
     # The API keys live in this environment, which only main can use.
     environment:

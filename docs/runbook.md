@@ -58,6 +58,10 @@ curl -s -H "Authorization: Bearer $h.$p.$s" -H "Accept: application/vnd.github+j
 
 On 2026-10-20 it answered installation 173586678 with `contents`, `issues` and `pull_requests` at `write`.
 
+## Runners
+
+Every job runs on Ubicloud's managed runners (`runs-on: ubicloud-standard-2`; console https://console.ubicloud.com, GitHub Runners), since 2026-10-21: that day GitHub's own runners left every job of the repository queued for about 15 minutes. Ubicloud's app is installed on this repository only; premium runners are off. To go back, set `runs-on: ubuntu-latest` again and drop `.github/actionlint.yaml`.
+
 ## Show a guard red
 
 `scripts/guard-red.sh <file> '<exact text of the guard>' '<replacement>' <test file>` takes the guard out, runs the tests and puts it back (CODING_STANDARDS.md, rule 4). It refuses when the text does not occur exactly once: on 2026-10-21 a hand-made `sed` that matched nothing twice looked like a guard that guarded nothing.

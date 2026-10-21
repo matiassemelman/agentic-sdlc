@@ -1,0 +1,4 @@
+# The factory's jobs run on Ubicloud's managed runners (its GitHub App is installed on the repository).
+self-hosted-runner:
+  labels:
+    - ubicloud-standard-2
