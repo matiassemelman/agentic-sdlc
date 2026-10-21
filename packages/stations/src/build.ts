@@ -69,6 +69,17 @@ export function changedFiles(porcelain: string): string[] {
     .map((line) => line.slice(3).split(" -> ").at(-1)!);
 }
 
+/**
+ * What a failed git command says, for a comment people read: git's own error lines, never the command. The
+ * command holds the push URL with the App's token, and Node puts it in the error's message.
+ */
+export function gitFailure(error: unknown, secret: string): string {
+  const stderr = String((error as { stderr?: unknown })?.stderr ?? "");
+  const lines = stderr.split("\n").filter((l) => /^( ! |fatal:|error:|CONFLICT)/.test(l));
+  const said = (lines.length ? lines : ["git failed with no message"]).join("\n").trim();
+  return secret ? said.replaceAll(secret, "***") : said;
+}
+
 /** Whether to publish what the build left, and as what. Only a change inside the hotel ever reaches a PR. */
 export function judgeBuild(built: Built): { publish: false; reason: string } | { publish: true; draft: boolean; reason?: string } {
   if (built.blocked?.trim()) return { publish: false, reason: `the build agent stopped and asks:\n\n${built.blocked.trim()}` };
@@ -99,8 +110,12 @@ export async function publishBuild(
   };
   if (!verdict.publish) return ask(verdict.reason);
 
-  await d.push.change(branch, `${run.title}\n\nRun #${run.number}, built from the spec with sha256 ${sha256}.`);
-  await d.push.evidence(`run-${run.number}`);
+  try {
+    await d.push.change(branch, `${run.title}\n\nRun #${run.number}, built from the spec with sha256 ${sha256}.`);
+    await d.push.evidence(`run-${run.number}`);
+  } catch (error) {
+    return ask(`publishing the change failed, so nothing was published:\n\n${error instanceof Error ? error.message : String(error)}`);
+  }
   const cardLink = card ? ` · [${card}](${d.board.cardUrl(card)})` : "";
   const pr = await d.pulls.openPull({
     title: run.title,

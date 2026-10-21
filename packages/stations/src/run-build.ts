@@ -8,7 +8,7 @@ import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSyn
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { changedFiles, prepareBuild, publishBuild, type Built, type Push } from "./build.ts";
+import { changedFiles, gitFailure, prepareBuild, publishBuild, type Built, type Push } from "./build.ts";
 import { clients, maintainer, required } from "./env.ts";
 import { GitHub } from "./github.ts";
 
@@ -68,18 +68,31 @@ const built: Built = {
   },
 };
 
+// A git command that reaches GitHub, whose failure becomes the escalation's reason: git's words, without the token.
+const remoteGit = (args: string[], cwd = root) => {
+  try {
+    return git(args, cwd);
+  } catch (error) {
+    throw new Error(`git ${args.find((a) => !a.startsWith("-") && !a.includes("="))} failed: ${gitFailure(error, token)}`);
+  }
+};
+
 const push: Push = {
   async change(branch, message) {
     git(["checkout", "-B", branch]);
     git(["add", "-A", "--", "apps/hotel"]);
     git([...author, "commit", "-q", "-m", message]);
-    git(["push", "-q", remote, `HEAD:refs/heads/${branch}`]);
+    // main may have moved during the build. GitHub refuses an App's push of a branch whose workflows differ from
+    // main's, so the change goes on top of main as it is now; a conflict there goes to a person.
+    remoteGit(["fetch", "-q", remote, "main"]);
+    remoteGit([...author, "rebase", "-q", "FETCH_HEAD"]);
+    remoteGit(["push", "-q", remote, `HEAD:refs/heads/${branch}`]);
   },
   // Screenshots live on their own branch, so a PR comment can show them and the change carries none.
   async evidence(folder) {
     const dir = mkdtempSync(join(tmpdir(), "evidence-"));
-    const exists = execFileSync("git", ["ls-remote", remote, "refs/heads/evidence"], { encoding: "utf8" }).trim() !== "";
-    if (exists) git(["clone", "-q", "--depth", "1", "--branch", "evidence", remote, dir], tmpdir());
+    const exists = remoteGit(["ls-remote", remote, "refs/heads/evidence"], tmpdir()) !== "";
+    if (exists) remoteGit(["clone", "-q", "--depth", "1", "--branch", "evidence", remote, dir], tmpdir());
     else {
       git(["init", "-q", dir], tmpdir());
       git(["checkout", "-q", "--orphan", "evidence"], dir);
@@ -88,7 +101,7 @@ const push: Push = {
     for (const file of readdirSync(evidenceDir)) cpSync(join(evidenceDir, file), join(dir, folder, file));
     git(["add", "-A"], dir);
     git([...author, "commit", "-q", "-m", `Evidence for ${folder}`], dir);
-    git(["push", "-q", remote, "HEAD:refs/heads/evidence"], dir);
+    remoteGit(["push", "-q", remote, "HEAD:refs/heads/evidence"], dir);
   },
 };
 
