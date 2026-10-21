@@ -2,8 +2,24 @@ import { useState } from "react";
 import Image from "next/image";
 import type { Room } from "@/lib/rooms";
 import { guestsLabel } from "@/lib/rooms";
-import { formatPrice, USD_PER_EUR, type Currency } from "@/lib/format";
+import { formatPrice, formatPricePerGuest, USD_PER_EUR, type Currency } from "@/lib/format";
 import { views } from "@/lib/views";
+
+function RoomPrices({ room, currency }: { room: Room; currency: Currency }) {
+  const perGuest = formatPricePerGuest(room.pricePerNight, room.maxGuests, currency);
+  return (
+    <div className="room__prices">
+      <p className="room__price">
+        <span data-testid="room-price">{formatPrice(room.pricePerNight, currency)}</span> a night
+      </p>
+      {perGuest && (
+        <p className="room__per-guest">
+          <span data-testid="room-price-per-guest">{perGuest}</span> per guest when full
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function RoomList({
   rooms,
@@ -51,9 +67,7 @@ export function RoomList({
             </div>
             <div className="room__row">
               <h3 className="room__name">{room.name}</h3>
-              <p className="room__price">
-                <span data-testid="room-price">{formatPrice(room.pricePerNight, currency)}</span> a night
-              </p>
+              <RoomPrices room={room} currency={currency} />
             </div>
             <p className="room__desc">{room.description}</p>
             <p className="room__facts">
