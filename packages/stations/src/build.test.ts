@@ -1,7 +1,10 @@
-import { resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { STATUS } from "./board.ts";
-import { branchFor, judgeBuild, prepareBuild, publishBuild, type Built } from "./build.ts";
+import { branchFor, changedFiles, judgeBuild, prepareBuild, publishBuild, type Built } from "./build.ts";
 import { reconcile } from "./factory.ts";
 import { FakeBoard, FakeRecord, stamp } from "./fakes.ts";
 import { exampleSpec, unclearSpec } from "./fixtures.ts";
@@ -109,5 +112,27 @@ describe("the build station", () => {
     expect(record.issues[0].labels).toEqual(expect.arrayContaining(["station:build", "escalated"]));
     expect(board.status(card)).toBe(STATUS.build);
     expect(board.notes(card).at(-1)).toContain("The build needs a person: the build changed files outside apps/hotel/");
+  });
+});
+
+describe("the files a build changed", () => {
+  it("reads git's own status output, whose first line can start with a space", () => {
+    // Run #19 (2026-10-20): the output was trimmed, " M apps/hotel/…" lost its space, and the path lost its "a".
+    const repo = mkdtempSync(join(tmpdir(), "changed-"));
+    const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: repo, encoding: "utf8" });
+    mkdirSync(join(repo, "apps/hotel/app"), { recursive: true });
+    writeFileSync(join(repo, "apps/hotel/app/globals.css"), "a {}\n");
+    writeFileSync(join(repo, "apps/hotel/old.ts"), "export {};\n");
+    git("init", "-q");
+    git("add", "-A");
+    git("commit", "-q", "-m", "base");
+    writeFileSync(join(repo, "apps/hotel/app/globals.css"), "b {}\n");
+    writeFileSync(join(repo, "apps/hotel/new.ts"), "export {};\n");
+    git("mv", "apps/hotel/old.ts", "apps/hotel/renamed.ts");
+    expect(changedFiles(git("status", "--porcelain", "--untracked-files=all")).sort()).toEqual([
+      "apps/hotel/app/globals.css",
+      "apps/hotel/new.ts",
+      "apps/hotel/renamed.ts",
+    ]);
   });
 });

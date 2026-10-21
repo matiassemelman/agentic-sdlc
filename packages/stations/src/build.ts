@@ -58,6 +58,17 @@ export async function prepareBuild(record: BuildRecord, pulls: Pick<Pulls, "pull
  */
 export type Built = { finished: boolean; changed: string[]; blocked?: string; evidence: { ok: boolean; problems: string[]; markdown: string } };
 
+/**
+ * The files `git status --porcelain --untracked-files=all` lists, renames by their new name. Each line is a
+ * two-letter status, a space and the path; the status of a modified tracked file starts with a space.
+ */
+export function changedFiles(porcelain: string): string[] {
+  return porcelain
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.slice(3).split(" -> ").at(-1)!);
+}
+
 /** Whether to publish what the build left, and as what. Only a change inside the hotel ever reaches a PR. */
 export function judgeBuild(built: Built): { publish: false; reason: string } | { publish: true; draft: boolean; reason?: string } {
   if (built.blocked?.trim()) return { publish: false, reason: `the build agent stopped and asks:\n\n${built.blocked.trim()}` };

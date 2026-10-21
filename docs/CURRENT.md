@@ -23,7 +23,10 @@
 ## Next Action
 Lookups (watch a run, start one, retry a build, Jira ids, the App check, secrets): `docs/runbook.md`.
 
-1. **The first live build of KAN-3 (run #19):** the spec gate approved its spec ($0.067) and started the build. The first build stopped at the agent (`claude-code-action` refuses runs started by `github-actions[bot]`); fixed in PR #20 with `allowed_bots`. The retry is Actions run 39528679299: expect a PR by `agentic-sdlc-factory[bot]` with its evidence, and the card in Gates. Watch it with `scripts/watch-run.sh build.yml 39528357310`.
+1. **The first live build of KAN-3 (run #19):** the spec gate approved its spec ($0.067) and started the build. Two live faults so far, each fixed:
+   - `claude-code-action` refuses runs started by `github-actions[bot]`: `allowed_bots` (PR #20).
+   - The second build was green (every criterion red on `main` and green with the change, screenshots), but `publish` read `git status` trimmed and refused `pps/hotel/app/globals.css` as outside the hotel: `changedFiles`, tested on git's real output (PR #21).
+   - Next: retry the build (`docs/runbook.md`) and expect a PR by `agentic-sdlc-factory[bot]` with its evidence, the gates on it, and the card in Gates.
 2. **Close STAGE-001-004:** the ruleset on `main` with `CODEOWNERS` (bypass for the admin's own PRs), the Acceptance column, `/code-review`, the stage's "Done when" checked live, then the docs.
 3. **Then the epic, stage by stage, until it is done:** 005 independent gates (CI runs `run-evidence.ts` again), 006 intake from a design session, 007 bug injection, 008 model gates, 009 self-healing (retries), 010 ledger, 011 reset demo, 012 graph, 013 tickets a guest writes. Each stage starts with its design, and Matias decides.
 4. **Deferred from the retro:** the factory doctor (item 1) and the Jira admin token (item 2). Live runs check the same setup from the real sources; build them when a setup fault comes back.

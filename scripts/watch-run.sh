@@ -30,13 +30,14 @@ log=$(gh run view "$id" --log)
 woke=$(grep -m1 -oP '^[^\t]+\t[^\t]+\t\S+ +(KEY|RUN|ADOPT): \K\S+' <<<"$log" || true)
 echo "$workflow run $id (${woke:-no input}): $conclusion"
 echo "$url"
-# The factory's steps, without their env groups; errors from any step. The agent's own output is left out.
+# The factory's own lines ("KAN-3: spec posted", "run #19: escalated (...)"), the evidence's rows and every error,
+# outside the env groups. By content, not by step: gh sometimes names every step "UNKNOWN STEP".
 lines=$(awk -F'\t' '
-  $2 ~ /^(Reconcile the board|Read the approved spec|The factory.s own evidence|Publish, or hand the run to a person|Run node packages\/stations\/src\/run-seed.ts.*)$/ || $3 ~ /##\[error\]/ {
+  {
     line = substr($3, index($3, " ") + 1)
     if (line ~ /^##\[group\]/) { skip = 1; next }
     if (line ~ /^##\[endgroup\]/) { skip = 0; next }
-    if (!skip && line != "") print line
+    if (!skip && (line ~ /^(run #[0-9]+|[A-Z][A-Z0-9]*-[0-9]+): / || line ~ /^Stopped: / || line ~ /^\| AC-[0-9]+ / || line ~ /##\[error\]/)) print line
   }' <<<"$log")
-echo "${lines:-(no factory log lines: nothing to do, or the run stopped before the factory's steps)}"
+if [ -n "$lines" ]; then echo "$lines"; else echo "(no factory log lines: nothing to do, or the run stopped before the factory steps)"; fi
 [ "$conclusion" = success ]
