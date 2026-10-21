@@ -10,15 +10,29 @@ import { adoptRun, checkBoard, seedPrepared } from "./seed.ts";
 const root = resolve(import.meta.dirname, "../../..");
 
 describe("seeding the board", () => {
-  it("adds each prepared ticket to Backlog once", async () => {
+  it("adds each prepared ticket to Backlog once, an epic's tickets under the epic's card and in its order", async () => {
     const board = new FakeBoard();
-    expect(await seedPrepared({ root, board, project: "SD" })).toHaveLength(3);
+    expect(await seedPrepared({ root, board, project: "SD" })).toEqual(["SD-1", "SD-2", "SD-3", "SD-4", "SD-5", "SD-6"]);
     expect(await seedPrepared({ root, board, project: "SD" })).toEqual([]);
-    expect([...board.cards.values()].map((s) => [s.card.summary, s.card.status, s.card.labels])).toEqual([
-      ["Filter rooms by number of guests", STATUS.backlog, ["ticket:guest-filter"]],
-      ["Total price of a stay, with the tourist tax", STATUS.backlog, ["ticket:stay-total"]],
-      ["Prices in euros or US dollars", STATUS.backlog, ["ticket:usd-prices"]],
+    expect([...board.cards.values()].map((s) => [s.card.key, s.epic ?? false, s.card.summary, s.card.status, s.card.labels, s.card.parent])).toEqual([
+      ["SD-1", true, "Make the rooms easier to compare", STATUS.backlog, ["epic:compare-rooms"], undefined],
+      ["SD-2", false, "Sort the rooms by price", STATUS.backlog, ["ticket:room-order"], "SD-1"],
+      ["SD-3", false, "Price per guest for each room", STATUS.backlog, ["ticket:price-per-guest"], "SD-1"],
+      ["SD-4", false, "Filter rooms by number of guests", STATUS.backlog, ["ticket:guest-filter"], undefined],
+      ["SD-5", false, "Total price of a stay, with the tourist tax", STATUS.backlog, ["ticket:stay-total"], undefined],
+      ["SD-6", false, "Prices in euros or US dollars", STATUS.backlog, ["ticket:usd-prices"], undefined],
     ]);
+  });
+
+  it("files an epic's missing tickets under a new epic card, and leaves the ones still open where they are", async () => {
+    const board = new FakeBoard();
+    const open = await board.create({ project: "SD", summary: "Sort the rooms by price", labels: ["ticket:room-order"] });
+    const done = await board.create({ project: "SD", summary: "Price per guest for each room", labels: ["ticket:price-per-guest"] });
+    board.drag(done, STATUS.done);
+    await seedPrepared({ root, board, project: "SD" });
+    const filed = [...board.cards.values()].filter((s) => s.card.labels.includes("ticket:price-per-guest") && s.card.key !== done);
+    expect(filed.map((s) => s.card.parent)).toEqual(["SD-3"]);
+    expect(board.cards.get(open)!.card.parent).toBeUndefined();
   });
 
   it("gives a run from before the board its card, and the board can then approve it", async () => {

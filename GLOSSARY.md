@@ -22,12 +22,16 @@ _Avoid_: task, story, feature request, issue, work item
 A ticket whose text is kept in the repository with its facts checked; the factory reads that text, never the copy on the board.
 _Avoid_: template, fixed ticket, demo ticket
 
+**Epic**:
+The tickets one design session files together, in the order they are to be built; each one can reach production without the others.
+_Avoid_: feature, project, batch, sprint
+
 **Board**:
 The Jira kanban where people see the factory's work and decide; each column is a station or a queue.
 _Avoid_: dashboard, panel, tracker
 
 **Ready**:
-The queue the factory takes its next ticket from, oldest first, one at a time.
+The queue the factory takes its next ticket from, oldest first, one at a time. Moving one ticket of an epic there queues the rest of its epic behind it.
 _Avoid_: to do, selected, sprint
 
 **Triage**:

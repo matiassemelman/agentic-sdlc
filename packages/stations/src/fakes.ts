@@ -8,7 +8,7 @@ let tick = 0;
 /** Timestamps that always move forward, so histories sort the way they happened. */
 export const stamp = () => new Date(Date.UTC(2026, 9, 20, 12, 0, tick++)).toISOString();
 
-type Stored = { card: Card; moves: Move[]; comments: CardComment[]; links: string[]; assignee?: string };
+type Stored = { card: Card; moves: Move[]; comments: CardComment[]; links: string[]; assignee?: string; epic?: boolean };
 
 export class FakeBoard {
   readonly cards = new Map<string, Stored>();
@@ -58,9 +58,10 @@ export class FakeBoard {
   async statusesByType() {
     return [{ type: "Task", subtask: false, statuses: this.statusNames }];
   }
-  async create({ summary, labels }: { project: string; summary: string; labels: string[] }) {
+  async create({ summary, labels, parent, epic }: { project: string; summary: string; labels: string[]; parent?: string; epic?: boolean }) {
     const key = `SD-${this.next++}`;
-    this.cards.set(key, { card: { key, summary, status: STATUS.backlog, labels, created: stamp() }, moves: [], comments: [], links: [] });
+    const card: Card = { key, summary, status: STATUS.backlog, labels, created: stamp(), ...(parent ? { parent } : {}) };
+    this.cards.set(key, { card, moves: [], comments: [], links: [], ...(epic ? { epic } : {}) });
     return key;
   }
 
@@ -78,6 +79,10 @@ export class FakeBoard {
   }
   status(key: string) {
     return this.cards.get(key)!.card.status;
+  }
+  /** The key of the first card with this label, as in `keyFor("ticket:guest-filter")`. */
+  keyFor(label: string) {
+    return [...this.cards.values()].find((s) => s.card.labels.includes(label))!.card.key;
   }
   notes(key: string) {
     return this.cards.get(key)!.comments.map((c) => c.text);

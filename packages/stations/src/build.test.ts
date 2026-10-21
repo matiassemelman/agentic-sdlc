@@ -19,7 +19,8 @@ const green: Built["evidence"] = { ok: true, problems: [], markdown: "| Criterio
 async function approvedRun(spec: Spec = exampleSpec()) {
   const board = new FakeBoard();
   const record = new FakeRecord();
-  const [card] = await seedPrepared({ root, board, project: "SD" });
+  await seedPrepared({ root, board, project: "SD" });
+  const card = board.keyFor("ticket:guest-filter");
   board.drag(card, STATUS.ready);
   const call = async () => ({ output: spec, tokens, stopReason: "end_turn" });
   await reconcile({ root, project: "SD", board, record, call, runUrl: "https://github.com/o/r/actions/runs/1", now: () => new Date(stamp()) }, card);

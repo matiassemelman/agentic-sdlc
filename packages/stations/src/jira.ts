@@ -1,14 +1,14 @@
 import { adfText, type Adf } from "./adf.ts";
 import { HttpError, send, type Fetch, type Wait } from "./http.ts";
 
-/** A card on the board, with the fields the factory reads. */
-export type Card = { key: string; summary: string; status: string; labels: string[]; created: string };
+/** A card on the board, with the fields the factory reads. `parent` is the key of its epic, if it has one. */
+export type Card = { key: string; summary: string; status: string; labels: string[]; created: string; parent?: string };
 /** One status change from a card's history: who moved it, from where, to where. */
 export type Move = { at: string; by: string; byName: string; from: string; to: string };
 export type CardComment = { id: string; author: string; created: string; updated: string; text: string };
 
-type RawIssue = { key: string; fields: { summary: string; status: { name: string }; labels: string[]; created: string } };
-const FIELDS = "summary,status,labels,created";
+type RawIssue = { key: string; fields: { summary: string; status: { name: string }; labels: string[]; created: string; parent?: { key: string } } };
+const FIELDS = "summary,status,labels,created,parent";
 
 /** The work type the factory creates cards with. Team-managed spaces name it in the site's language. */
 export const CARD_TYPE = /^(task|tarea)$/i;
@@ -19,6 +19,7 @@ const toCard = (issue: RawIssue): Card => ({
   status: issue.fields.status.name,
   labels: issue.fields.labels,
   created: issue.fields.created,
+  ...(issue.fields.parent ? { parent: issue.fields.parent.key } : {}),
 });
 
 /**
@@ -153,19 +154,22 @@ export class Jira {
     return types.map((t) => ({ type: t.name, subtask: t.subtask, statuses: t.statuses.map((s) => s.name) }));
   }
 
-  /** Creates a card in the space's first status (Backlog). Returns its key. */
-  async create({ project, summary, description, labels }: { project: string; summary: string; description: Adf; labels: string[] }): Promise<string> {
+  /**
+   * Creates a card in the space's first status (Backlog), or an epic, at the level above the cards (team-managed
+   * spaces name its type in the site's language too). A card with a parent is filed under that epic. Returns its key.
+   */
+  async create({ project, summary, description, labels, parent, epic = false }: { project: string; summary: string; description: Adf; labels: string[]; parent?: string; epic?: boolean }): Promise<string> {
     type IssueType = { id: string; name: string; subtask: boolean; hierarchyLevel: number };
     const page = await this.call<{ issueTypes?: IssueType[]; createMetaIssueType?: IssueType[] }>(
       `reading the work types of ${project}`,
       "GET",
       `/issue/createmeta/${encodeURIComponent(project)}/issuetypes`,
     );
-    const standard = (page.createMetaIssueType ?? page.issueTypes ?? []).filter((t) => !t.subtask && t.hierarchyLevel === 0);
-    const type = standard.find((t) => CARD_TYPE.test(t.name)) ?? standard[0];
-    if (!type) throw new Error(`${project} has no standard work type to create cards with`);
-    const created = await this.call<{ key: string }>(`creating a card in ${project}`, "POST", "/issue", {
-      fields: { project: { key: project }, issuetype: { id: type.id }, summary, description, labels },
+    const level = (page.createMetaIssueType ?? page.issueTypes ?? []).filter((t) => !t.subtask && t.hierarchyLevel === (epic ? 1 : 0));
+    const type = epic ? level[0] : (level.find((t) => CARD_TYPE.test(t.name)) ?? level[0]);
+    if (!type) throw new Error(`${project} has no ${epic ? "epic" : "standard"} work type to create ${epic ? "epics" : "cards"} with`);
+    const created = await this.call<{ key: string }>(`creating ${epic ? "an epic" : "a card"} in ${project}`, "POST", "/issue", {
+      fields: { project: { key: project }, issuetype: { id: type.id }, summary, description, labels, ...(parent ? { parent: { key: parent } } : {}) },
     });
     return created.key;
   }
