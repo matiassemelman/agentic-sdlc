@@ -9,7 +9,7 @@ import { runSpecStation, StationError, type ModelCall } from "./spec-station.ts"
 import { listTicketIds, loadTicket, type Ticket } from "./tickets.ts";
 
 export type BoardApi = Pick<Jira, "cardUrl" | "me" | "card" | "search" | "moves" | "move" | "comment" | "comments" | "link">;
-export type RecordApi = Pick<GitHub, "runs" | "create" | "comment" | "comments" | "relabel" | "close">;
+export type RecordApi = Pick<GitHub, "runs" | "create" | "comment" | "comments" | "relabel" | "close" | "dispatch">;
 
 /** Everything the factory works with. Tests pass fakes for the board, the record and the model. */
 export type Factory = {
@@ -135,6 +135,7 @@ async function take(f: Factory, card: Observed, ticketId: string): Promise<Envel
   f.log?.(`${card.key}: run #${issue.number} opened`);
   // From here on the run exists, so whatever stops it (the model, Jira, GitHub) ends it with a reason.
   let station = "station:spec";
+  let envelope: Envelope | undefined;
   try {
     await f.board.move(card.key, STATUS.spec);
     await f.board.link(card.key, issue.url, `Run #${issue.number} on GitHub`);
@@ -163,12 +164,24 @@ async function take(f: Factory, card: Observed, ticketId: string): Promise<Envel
       await f.board.comment(card.key, note(adf.text("Spec approved by the spec gate (sha256 "), adf.code(sha.slice(0, 12)), adf.text("). Next station: build.")));
       f.log?.(`${card.key}: spec approved by the spec gate`);
     }
-    return result.envelope;
+    envelope = result.envelope;
   } catch (error) {
     if (!(error instanceof StationError)) console.error(error);
     await fail(f, { ...issue, station }, card, describeFailure(error));
     return;
   }
+  // Outside the run's failure path: the spec stays approved even if the build does not start.
+  if (station === "station:build") await startBuild(f, issue.number);
+  return envelope;
+}
+
+/**
+ * Starts the build station for a run whose spec is approved. The build starts once per run however often
+ * it is asked (it checks the run first), so a look that sees the approval again may ask again.
+ */
+async function startBuild(f: Factory, run: number): Promise<void> {
+  await f.record.dispatch("build.yml", { run: String(run) });
+  f.log?.(`run #${run}: build started`);
 }
 
 /** Ends a run that failed, on both sides, with a reason a person can act on. */
@@ -209,6 +222,7 @@ async function approve(f: Factory, factory: string, run: Run, card: Observed, wh
   // A later look may still get the run from GitHub's list as it was before this approval: it counts once.
   if (comments.some((c) => c.author === BOT && c.body.includes(`<!-- factory:approved sha256=${sha} `))) {
     await f.record.relabel(run.number, { add: ["station:build"], remove: ["station:spec-approval"] });
+    await startBuild(f, run.number);
     return;
   }
   await f.record.comment(
@@ -219,6 +233,7 @@ async function approve(f: Factory, factory: string, run: Run, card: Observed, wh
   await f.record.relabel(run.number, { add: ["station:build"], remove: ["station:spec-approval"] });
   await f.board.comment(card.key, note(adf.text(`Spec approved by ${who} (sha256 `), adf.code(sha.slice(0, 12)), adf.text("). Next station: build.")));
   f.log?.(`${card.key}: spec approved by ${who}`);
+  await startBuild(f, run.number);
 }
 
 async function reject(f: Factory, run: Run, card: Observed, who: string): Promise<undefined> {

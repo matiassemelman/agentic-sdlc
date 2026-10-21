@@ -82,6 +82,7 @@ type Issue = RunIssue & { body: string; comments: IssueComment[]; closedAs?: str
 
 export class FakeRecord {
   readonly issues: Issue[] = [];
+  readonly dispatched: { workflow: string; inputs: Record<string, string> }[] = [];
   private next = 10;
   private listing?: Issue[];
 
@@ -110,6 +111,9 @@ export class FakeRecord {
   }
   async close(number: number, reason: string) {
     Object.assign(this.get(number), { open: false, closedAs: reason });
+  }
+  async dispatch(workflow: string, inputs: Record<string, string>) {
+    this.dispatched.push({ workflow, inputs });
   }
   async retitle(number: number, title: string) {
     Object.assign(this.get(number), { title, key: keyOf(title) });

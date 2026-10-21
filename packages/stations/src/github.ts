@@ -99,4 +99,21 @@ export class GitHub {
   async retitle(number: number, title: string): Promise<void> {
     await this.call(`renaming #${number}`, "PATCH", `/issues/${number}`, { title });
   }
+
+  /** Starts a workflow on main. A dispatch is the one event GITHUB_TOKEN may start a workflow with. */
+  async dispatch(workflow: string, inputs: Record<string, string>): Promise<void> {
+    await this.call(`starting ${workflow}`, "POST", `/actions/workflows/${workflow}/dispatches`, { ref: "main", inputs });
+  }
+
+  /** The open pull requests from a branch of this repository. */
+  async pulls(branch: string): Promise<{ number: number; url: string }[]> {
+    const owner = this.repo.split("/")[0];
+    const raw = await this.call<{ number: number; html_url: string }[]>(`looking for a PR from ${branch}`, "GET", `/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`);
+    return raw.map((p) => ({ number: p.number, url: p.html_url }));
+  }
+
+  async openPull({ title, branch, body, draft }: { title: string; branch: string; body: string; draft: boolean }): Promise<{ number: number; url: string }> {
+    const raw = await this.call<{ number: number; html_url: string }>(`opening the PR from ${branch}`, "POST", "/pulls", { title, head: branch, base: "main", body, draft });
+    return { number: raw.number, url: raw.html_url };
+  }
 }

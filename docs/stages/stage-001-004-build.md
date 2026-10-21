@@ -46,6 +46,20 @@
    - installed only on `agentic-sdlc`.
 2. In the `factory` environment, save its App ID as the variable `FACTORY_APP_ID` and its private key as the secret `FACTORY_APP_PRIVATE_KEY`.
 
+## Built (2026-10-20, not yet run live)
+- **Spec gate:** `validateSpec` returns `{ hard, soft }`. `take` approves a clean spec (`by=gate:spec`, card to Build) and escalates a soft one with its reasons in plain words. Every approval, by the gate or by a person, starts `build.yml`.
+- **Evidence:** `run-evidence.ts` takes the change's tests to a worktree of the base code: the unit tests first, then the e2e tests, because `next build` type-checks every file. Each criterion's test must be red there and green with the change. Every e2e criterion gets a screenshot on a desktop and a 375px phone. It took 37 s on a test change.
+  - Checked against planted defects: it caught a hollow unit test, a hollow e2e test, a test that fails with the change and a criterion with no test. It passed the one sound test.
+  - A test file that cannot load on the base code counts as red for every criterion in it, so a hollow test hidden in such a file gets through. That is the eval's job (STAGE-001-008).
+- **Skills:** `verify-hotel` (launch, drive, evidence, clean up, feature map) and `implement-ticket` (tests first, every gate, evidence, or `.factory/blocked.md`).
+- **`build.yml` and `build.ts`:**
+  - `prepare` builds a run once: approved for its hash, at the build station, not escalated, with no PR.
+  - The agent runs with the Anthropic key and a read-only token, and only the gates' and the evidence's commands.
+  - The factory's own evidence run, the App token and `publish` run even when the agent failed:
+    - a change outside `apps/hotel`, a `blocked.md`, no change, or an agent that did not finish goes to a person;
+    - red evidence opens a draft PR and goes to a person too.
+- **Not yet:** the ruleset on `main` and `CODEOWNERS`, the Acceptance column, and the first live run (it needs the App).
+
 ## Done when
 - A prepared ticket with a clear spec goes from Ready to an open PR with no person:
   - the spec gate approves the spec;

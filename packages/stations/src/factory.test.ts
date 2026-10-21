@@ -34,6 +34,7 @@ describe("the factory on the board", () => {
     const specs = await reconcile(f, guestFilter);
 
     expect(board.status(guestFilter)).toBe(STATUS.build);
+    expect(record.dispatched).toEqual([{ workflow: "build.yml", inputs: { run: "10" } }]);
     const [run] = record.issues;
     expect(run.title).toBe(`${guestFilter}: Filter rooms by number of guests`);
     expect(run.labels).toEqual(["run", "ticket:guest-filter", "station:build"]);
@@ -55,6 +56,7 @@ describe("the factory on the board", () => {
     const { f, board, record, guestFilter } = await setup(unclear);
     board.drag(guestFilter, STATUS.ready);
     await reconcile(f, guestFilter);
+    expect(record.dispatched).toEqual([]);
 
     expect(board.status(guestFilter)).toBe(STATUS.specReview);
     const [run] = record.issues;
@@ -91,6 +93,7 @@ describe("the factory on the board", () => {
     expect(run.comments.at(-1)!.body).toMatch(/<!-- factory:approved sha256=[0-9a-f]{64} by=jira:po-id -->/);
     expect(board.status(guestFilter)).toBe(STATUS.build);
     expect(board.notes(guestFilter).at(-1)).toMatch(/^Spec approved by Ana/);
+    expect(record.dispatched).toEqual([{ workflow: "build.yml", inputs: { run: "10" } }]);
   });
 
   it("refuses the approval when the spec on the card was edited", async () => {
