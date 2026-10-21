@@ -73,6 +73,22 @@ Where the App's key and installation live, and how to check them: `docs/runbook.
 - **Build 2** (18 min) was green: every criterion red on `main` and green with the change, a screenshot per e2e criterion on desktop and a 375px phone. `publish` refused it: `git()` trims its output, so ` M apps/hotel/app/globals.css` lost its leading space and became `pps/hotel/...`, outside the hotel. Fixed with `changedFiles`, tested on git's real output (PR #21).
 - **Build 3** (16 min) was green again, and its push was refused: "refusing to allow a GitHub App to create or update workflow `.github/workflows/board.yml` without `workflows` permission". PR #23 changed `board.yml` on `main` while the build ran from the older `main`, and GitHub treats an App's branch whose workflows differ from `main`'s as a workflow change. The failure also stayed in Build with no one told. Fixed (PR #24): `publish` rebases the change onto `main` as it is now, and a failed push escalates with git's own words, never the push URL with the App's token.
 
+- **Build 4** opened PR #26 by `agentic-sdlc-factory[bot]`. Its gates passed, `Board` moved KAN-3 to Merge and assigned it to the Maintainer, who approved and merged it; the run closed as completed and production shows the switch.
+
+## Build time (2026-10-21)
+Measured, not assumed: the fast gates take 39 s, so the time is in the build.
+
+| Step | Sonnet 5.5, KAN-3 (builds 2, 3) | Haiku 5.5 high, KAN-4 (run #27) |
+|---|---|---|
+| The build job | ~1130 s | 585 s |
+| The build agent | 801 / 819 s | 447 s (43 turns, $0.12; model 229 s, tools 218 s) |
+| The factory's evidence | 232 / 237 s | 44 s |
+
+- The evidence's base spent 212 of 237 s on five tests meant to fail, in one worker, each retried and waiting out a click on a missing button. Now: `--retries=0 --fully-parallel --workers=5` on the base, and `actionTimeout` 5 s in the hotel's Playwright config (PR #25).
+- The two runs differ in ticket and model, and the agent ran the faster evidence too (6 times), so the agent's drop is not Haiku's alone.
+- Run #27 escalated: `AGENTS.md` tells the agent to run `pnpm --filter hotel e2e`, and its allowed tools refused it. Haiku stopped and asked instead of working around it. Fixed, with a test that every gate in `AGENTS.md` is an allowed tool (PR #27).
+- The same PR protects `apps/hotel/AGENTS.md` and the hotel's test configs: the agent may not change its own rules or the harness that judges it, and `AGENTS.md` and `implement-ticket` say so.
+
 ## The board finishes by itself (2026-10-21)
 After the build, nothing moved the card past Gates. Now `Board` also runs when the fast gates finish (`workflow_run`) and when `main` changes (a merge), and it reads each run's PR:
 - every gate passed (`GATES` in `board.ts`): the run goes to `station:maintainer`, the card to Merge, assigned to the Maintainer;

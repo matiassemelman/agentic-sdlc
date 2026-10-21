@@ -8,7 +8,7 @@ Instructions for any coding agent (Claude Code, Cursor, Copilot, Gemini) working
 
 ## Layout
 
-- `apps/hotel`: Hotel Mirador, a fictional hotel site (Next.js 16, TypeScript). **The only app an agent may change.** Next.js 16 has breaking changes: read `apps/hotel/AGENTS.md` and the docs it points to before writing Next code.
+- `apps/hotel`: Hotel Mirador, a fictional hotel site (Next.js 16, TypeScript). **The only app an agent may change**, except its agent rules and test configs (`apps/hotel/AGENTS.md`, `apps/hotel/playwright.config.ts`, `apps/hotel/vitest.config.ts`), which only the factory changes. Next.js 16 has breaking changes: read `apps/hotel/AGENTS.md` and the docs it points to before writing Next code.
   - `data/rooms.json`: the rooms. There is no database.
   - `lib/`: pure logic, each module with a `*.test.ts` beside it.
   - `components/`, `app/`: the page.

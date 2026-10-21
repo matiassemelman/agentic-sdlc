@@ -14,6 +14,8 @@ export type Push = { change(branch: string, message: string): Promise<void>; evi
 const BOT = "github-actions[bot]";
 const SPEC_MARKER = "<!-- factory:spec v1";
 const HOTEL = "apps/hotel/";
+/** Files inside the hotel that only the factory changes: the agent's own rules, and the harness that judges its work. */
+export const PROTECTED = ["apps/hotel/AGENTS.md", "apps/hotel/playwright.config.ts", "apps/hotel/vitest.config.ts"];
 const note = (...parts: (adf.Inline | adf.Inline[])[]) => adf.doc(adf.paragraph(...parts));
 
 /** The branch a run's change goes on, as in `run/16-total-price-of-a-stay`. */
@@ -84,8 +86,9 @@ export function gitFailure(error: unknown, secret: string): string {
 export function judgeBuild(built: Built): { publish: false; reason: string } | { publish: true; draft: boolean; reason?: string } {
   if (built.blocked?.trim()) return { publish: false, reason: `the build agent stopped and asks:\n\n${built.blocked.trim()}` };
   if (!built.finished) return { publish: false, reason: "the build agent did not finish (its step failed or ran out of turns). Nothing was published." };
-  const outside = built.changed.filter((f) => !f.startsWith(HOTEL));
-  if (outside.length) return { publish: false, reason: `the build changed files outside ${HOTEL}, which only the factory changes: ${outside.join(", ")}. Nothing was published.` };
+  const outside = built.changed.filter((f) => !f.startsWith(HOTEL) || PROTECTED.includes(f));
+  if (outside.length)
+    return { publish: false, reason: `the build changed files only the factory changes (outside ${HOTEL}, or the hotel's agent rules and test configs): ${outside.join(", ")}. Nothing was published.` };
   if (!built.changed.length) return { publish: false, reason: `the build agent left no change in ${HOTEL}.` };
   if (!built.evidence.ok) return { publish: true, draft: true, reason: `the evidence is not green, so the PR is a draft:\n${built.evidence.problems.map((p) => `- ${p}`).join("\n")}` };
   return { publish: true, draft: false };
