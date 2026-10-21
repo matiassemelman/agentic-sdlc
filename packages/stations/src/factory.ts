@@ -1,5 +1,6 @@
 import * as adf from "./adf.ts";
-import { decide, STATUS, stationOf, type Action, type BoardState, type Observed, type Run } from "./board.ts";
+import { decide, gatesOf, GATES, STATUS, stationOf, type Action, type BoardState, type Observed, type Run, type RunPull } from "./board.ts";
+import { branchFor } from "./build.ts";
 import type { GitHub } from "./github.ts";
 import { HttpError } from "./http.ts";
 import type { Jira } from "./jira.ts";
@@ -8,8 +9,8 @@ import { readSpecComment, SHOWN_SHA, specAdf, specHash, type Envelope } from "./
 import { runSpecStation, StationError, type ModelCall } from "./spec-station.ts";
 import { listTicketIds, loadTicket, type Ticket } from "./tickets.ts";
 
-export type BoardApi = Pick<Jira, "cardUrl" | "me" | "card" | "search" | "moves" | "move" | "comment" | "comments" | "link">;
-export type RecordApi = Pick<GitHub, "runs" | "create" | "comment" | "comments" | "relabel" | "close" | "dispatch">;
+export type BoardApi = Pick<Jira, "cardUrl" | "me" | "card" | "search" | "moves" | "move" | "comment" | "comments" | "link" | "assign">;
+export type RecordApi = Pick<GitHub, "runs" | "create" | "comment" | "comments" | "relabel" | "close" | "dispatch" | "pull" | "checks">;
 
 /** Everything the factory works with. Tests pass fakes for the board, the record and the model. */
 export type Factory = {
@@ -20,6 +21,8 @@ export type Factory = {
   call: ModelCall;
   /** The workflow run doing this work, linked from what the factory writes. */
   runUrl: string;
+  /** The Maintainer's Jira account: a card that needs a person is assigned to it, so Jira tells them. */
+  maintainer?: string;
   now?: () => Date;
   log?: (line: string) => void;
 };
@@ -29,6 +32,16 @@ const BOT = "github-actions[bot]";
 const PASSES = 5;
 
 const note = (...parts: (adf.Inline | adf.Inline[])[]) => adf.doc(adf.paragraph(...parts));
+
+/** Hands a card to the Maintainer: Jira tells them, and the board shows who the factory waits for. */
+async function askMaintainer(f: Factory, key: string): Promise<void> {
+  if (f.maintainer) await f.board.assign(key, f.maintainer);
+}
+
+/** Whether the run issue already says this step happened: GitHub's list may still show the run from before it. */
+async function done(f: Factory, run: number, marker: string): Promise<boolean> {
+  return (await f.record.comments(run)).some((c) => c.author === BOT && c.body.includes(marker));
+}
 
 /** A failure as a person reads it: our own messages as they are, anything unexpected summarised. */
 export function describeFailure(error: unknown): string {
@@ -57,7 +70,13 @@ export async function observe(f: Factory, factory: string, hint?: string): Promi
     return active ? { ...card, moves: await f.board.moves(key) } : null;
   };
   const cards = (await Promise.all(keys.map(read))).filter((c): c is Observed => c !== null);
-  return { runs, cards, factory, runsLast24h: recent.length, ticketIds: listTicketIds(f.root), hint };
+  // A run past the build has a PR: whether it is merged, and its gates, decide where the run goes next.
+  const pulls: Record<number, RunPull> = {};
+  for (const run of runs.filter((r) => r.station === "station:gates" || r.station === "station:maintainer")) {
+    const pull = await f.record.pull(branchFor(run));
+    if (pull) pulls[run.number] = { ...pull, gates: pull.state === "open" ? gatesOf(await f.record.checks(pull.sha)) : { state: "pending", failed: [] } };
+  }
+  return { runs, cards, factory, runsLast24h: recent.length, ticketIds: listTicketIds(f.root), hint, pulls };
 }
 
 /**
@@ -97,6 +116,12 @@ async function act(f: Factory, factory: string, action: Action): Promise<Envelop
       return reject(f, action.run, action.card, action.by.byName);
     case "fail":
       return fail(f, action.run, action.card, action.reason);
+    case "gatesPassed":
+      return gatesPassed(f, action.run, action.card, action.pull);
+    case "gatesFailed":
+      return gatesFailed(f, action.run, action.card, action.pull);
+    case "merged":
+      return merged(f, action.run, action.card, action.pull);
     case "restore": {
       const move = action.card.moves.at(-1);
       const who = move ? `${move.byName} moved this card to ${action.card.status}. ` : "";
@@ -151,6 +176,7 @@ async function take(f: Factory, card: Observed, ticketId: string): Promise<Envel
       await f.board.move(card.key, STATUS.specReview);
       await f.record.comment(issue.number, `The spec gate needs a person: ${reasons}. Move ${card.key} to Build to approve the spec as it is, or to Done to reject it.`);
       await f.board.comment(card.key, note(adf.text(`The spec gate needs a person: ${reasons}. Move the card to Build to approve the spec as it is, or to Done to reject it.`)));
+      await askMaintainer(f, card.key);
       f.log?.(`${card.key}: spec sent to a person (${reasons})`);
     } else {
       const sha = specHash(result.envelope);
@@ -193,7 +219,47 @@ async function fail(f: Factory, run: Run, card: Observed | null, reason: string)
   if (card) {
     await f.board.comment(card.key, note(adf.text(`Run #${run.number} stopped: ${reason} `), adf.link("Workflow run", f.runUrl)));
     if (card.status !== STATUS.done) await f.board.move(card.key, STATUS.done);
+    await askMaintainer(f, card.key);
   }
+}
+
+/** The PR passed every gate: it waits for the Maintainer, who reviews the evidence and merges. */
+async function gatesPassed(f: Factory, run: Run, card: Observed, pull: RunPull): Promise<undefined> {
+  const marker = `<!-- factory:gates-passed pr=${pull.number} -->`;
+  if (!(await done(f, run.number, marker))) {
+    await f.record.comment(run.number, `PR #${pull.number} passed the gates: ${GATES.join("; ")}. Next: the Maintainer reviews and merges it.\n${marker}`);
+    await f.board.move(card.key, STATUS.merge);
+    await f.board.comment(card.key, note(adf.text("Every gate passed. The Maintainer reviews the evidence on "), adf.link(`PR #${pull.number}`, pull.url), adf.text(" and merges it to production.")));
+    await askMaintainer(f, card.key);
+    f.log?.(`${card.key}: gates passed on PR #${pull.number}, waiting for the Maintainer`);
+  }
+  await f.record.relabel(run.number, { add: ["station:maintainer"], remove: ["station:gates"] });
+}
+
+/** A gate failed on the PR: the run waits for a person, with the card in Gates. Retries come with self-healing. */
+async function gatesFailed(f: Factory, run: Run, card: Observed, pull: RunPull): Promise<undefined> {
+  const marker = `<!-- factory:gates-failed pr=${pull.number} -->`;
+  const failed = pull.gates.failed.join("; ");
+  if (!(await done(f, run.number, marker))) {
+    await f.record.comment(run.number, `The gates need a person: ${failed} failed on PR #${pull.number}.\n${marker}`);
+    await f.board.comment(card.key, note(adf.text(`The gates need a person: ${failed} failed on `), adf.link(`PR #${pull.number}`, pull.url), adf.text(".")));
+    await askMaintainer(f, card.key);
+    f.log?.(`${card.key}: gates failed on PR #${pull.number} (${failed})`);
+  }
+  await f.record.relabel(run.number, { add: ["escalated"] });
+}
+
+/** The Maintainer merged the PR: the run is done, and production deploys from main. */
+async function merged(f: Factory, run: Run, card: Observed, pull: RunPull): Promise<undefined> {
+  const marker = `<!-- factory:merged pr=${pull.number} -->`;
+  if (!(await done(f, run.number, marker))) {
+    await f.record.comment(run.number, `PR #${pull.number} was merged. The run is done; production deploys from main.\n${marker}`);
+    await f.board.comment(card.key, note(adf.link(`PR #${pull.number}`, pull.url), adf.text(" was merged. The change goes to production from main.")));
+    f.log?.(`${card.key}: PR #${pull.number} merged, run #${run.number} done`);
+  }
+  await f.record.relabel(run.number, { add: ["outcome:merged"], remove: run.station ? [run.station] : [] });
+  await f.record.close(run.number, "completed");
+  if (card.status !== STATUS.done) await f.board.move(card.key, STATUS.done);
 }
 
 /**

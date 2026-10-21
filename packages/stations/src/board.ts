@@ -1,5 +1,5 @@
 import { MAX_RUNS_PER_DAY } from "./admission.ts";
-import type { RunIssue } from "./github.ts";
+import type { Check, Pull, RunIssue } from "./github.ts";
 import type { Card, Move } from "./jira.ts";
 
 /** The board's statuses, one per column. The factory finds them by these names. */
@@ -35,19 +35,37 @@ const WAITING_FOR: Record<string, string> = {
   "station:build": "The factory is building this change; the card moves on by itself.",
   "station:gates": "The gates are checking this change; the card moves on by itself.",
   "station:acceptance": "The change waits for the product owner to accept it.",
-  "station:maintainer": "The change waits for the Maintainer to merge it.",
+  "station:maintainer": "The change waits for the Maintainer to review and merge its PR; the card moves to Done by itself.",
 };
+
+/** The checks a factory PR must pass before it waits for the Maintainer, by their names on GitHub. */
+export const GATES = ["Lint, types, unit, build, design", "Workflow lint, private terms"];
+
+export type Gates = { state: "pending" | "passed" | "failed"; failed: string[] };
+
+/** Whether a commit passed the gates: each one finished with success. A missing or running gate is pending. */
+export function gatesOf(checks: Check[]): Gates {
+  const failed = GATES.filter((name) => checks.some((c) => c.name === name && c.status === "completed" && c.conclusion !== "success"));
+  if (failed.length) return { state: "failed", failed };
+  const passed = GATES.every((name) => checks.some((c) => c.name === name && c.status === "completed" && c.conclusion === "success"));
+  return { state: passed ? "passed" : "pending", failed: [] };
+}
 
 /** A card as the factory sees it: its fields and its history of moves. */
 export type Observed = Card & { moves: Move[] };
 
 export type Run = RunIssue & { station?: string };
+/** A run's PR as GitHub shows it now, with its gates (pending unless the PR is open). */
+export type RunPull = Pull & { gates: Gates };
 
 export type Action =
   | { kind: "take"; card: Observed; ticketId: string }
   | { kind: "approve"; run: Run; card: Observed; by: Move }
   | { kind: "reject"; run: Run; card: Observed; by: Move }
   | { kind: "fail"; run: Run; card: Observed | null; reason: string }
+  | { kind: "gatesPassed"; run: Run; card: Observed; pull: RunPull }
+  | { kind: "gatesFailed"; run: Run; card: Observed; pull: RunPull }
+  | { kind: "merged"; run: Run; card: Observed; pull: RunPull }
   | { kind: "restore"; card: Observed; to: string; reason: string }
   | { kind: "note"; card: Observed; reason: string };
 
@@ -62,6 +80,8 @@ export type BoardState = {
   ticketIds: string[];
   /** The card whose change woke the factory up, if any: only it gets a note while it waits. */
   hint?: string;
+  /** The PRs of the runs at the gates or waiting for the Maintainer, by run number. */
+  pulls?: Record<number, RunPull>;
 };
 
 export const stationOf = (labels: string[]) => labels.find((l) => l.startsWith("station:"));
@@ -87,6 +107,22 @@ export function decide(state: BoardState): Action[] {
       continue;
     }
     if (!card || !run.station) continue;
+    const pull = state.pulls?.[run.number];
+    if (pull && (run.station === "station:gates" || run.station === "station:maintainer")) {
+      if (pull.state === "merged") {
+        actions.push({ kind: "merged", run, card, pull });
+        continue;
+      }
+      if (pull.state === "closed") {
+        actions.push({ kind: "fail", run, card, reason: `PR #${pull.number} was closed without a merge.` });
+        continue;
+      }
+      // An escalated run waits for a person; its gates are not looked at again.
+      if (run.station === "station:gates" && !run.labels.includes("escalated") && pull.gates.state !== "pending") {
+        actions.push({ kind: pull.gates.state === "passed" ? "gatesPassed" : "gatesFailed", run, card, pull });
+        continue;
+      }
+    }
     const expected = STATION_STATUS[run.station];
     if (!expected || card.status === expected) continue;
     const move = lastMove(card);
@@ -123,7 +159,7 @@ export function decide(state: BoardState): Action[] {
   }
 
   // A run that ends in this pass (rejected or failed) frees the factory for the next pass, not this one.
-  const ending = new Set(actions.flatMap((a) => (a.kind === "reject" || a.kind === "fail" ? [a.run.number] : [])));
+  const ending = new Set(actions.flatMap((a) => (a.kind === "reject" || a.kind === "fail" || a.kind === "merged" ? [a.run.number] : [])));
   const run = state.runs.find((r) => r.station !== "station:maintainer" && !ending.has(r.number));
   const busy = run ? (run.key ?? `run #${run.number}`) : unlisted[0]?.key;
   const limited = state.runsLast24h >= MAX_RUNS_PER_DAY;

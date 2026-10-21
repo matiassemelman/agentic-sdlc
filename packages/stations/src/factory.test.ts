@@ -255,3 +255,95 @@ describe("the factory on the board", () => {
     expect(JSON.stringify([...board.cards.values(), record.issues])).toBe(before);
   });
 });
+
+describe("after the build: the gates, the Maintainer, the merge", () => {
+  const passing = [
+    { name: "Lint, types, unit, build, design", status: "completed", conclusion: "success" },
+    { name: "Workflow lint, private terms", status: "completed", conclusion: "success" },
+  ];
+
+  /** A run the build station published: PR #42 open, the run at the gates, its card in Gates. */
+  async function published(checks: { name: string; status: string; conclusion: string | null }[]) {
+    const s = await setup();
+    s.f.maintainer = "maintainer-id";
+    s.board.drag(s.guestFilter, STATUS.ready);
+    await reconcile(s.f, s.guestFilter);
+    const run = s.record.issues[0];
+    await s.record.relabel(run.number, { add: ["station:gates"], remove: ["station:build"] });
+    await s.board.move(s.guestFilter, STATUS.gates);
+    const pull = { number: 42, url: "https://github.com/o/r/pull/42", state: "open" as const, sha: "abc1234" };
+    s.record.pullsByBranch.set(`run/${run.number}-filter-rooms-by-number-of-guests`, pull);
+    s.record.checksBySha.set(pull.sha, checks);
+    return { ...s, run, pull };
+  }
+
+  it("waits while a gate is still running", async () => {
+    const { f, board, run, guestFilter } = await published([passing[0], { ...passing[1], status: "in_progress", conclusion: null }]);
+    await reconcile(f);
+    expect(board.status(guestFilter)).toBe(STATUS.gates);
+    expect(run.labels).toContain("station:gates");
+  });
+
+  it("moves a PR that passed every gate to the Maintainer, and assigns them the card", async () => {
+    const { f, board, record, run, guestFilter } = await published(passing);
+    await reconcile(f);
+    expect(board.status(guestFilter)).toBe(STATUS.merge);
+    expect(record.get(run.number).labels).toContain("station:maintainer");
+    expect(board.assignee(guestFilter)).toBe("maintainer-id");
+    expect(board.notes(guestFilter).at(-1)).toMatch(/^Every gate passed\. The Maintainer reviews the evidence on PR #42/);
+  });
+
+  it("says the gates passed once, though GitHub's list still shows the run at the gates", async () => {
+    const { f, board, record, run, guestFilter } = await published(passing);
+    record.freezeListing();
+    await reconcile(f);
+    await reconcile(f);
+    expect(board.notes(guestFilter).filter((n) => n.startsWith("Every gate passed"))).toHaveLength(1);
+    expect(record.get(run.number).comments.filter((c) => c.body.includes("factory:gates-passed"))).toHaveLength(1);
+    expect(board.status(guestFilter)).toBe(STATUS.merge);
+  });
+
+  it("escalates once when a gate fails, with the card in Gates and assigned to the Maintainer", async () => {
+    const { f, board, record, run, guestFilter } = await published([passing[0], { ...passing[1], conclusion: "failure" }]);
+    record.freezeListing();
+    await reconcile(f);
+    await reconcile(f);
+    expect(board.status(guestFilter)).toBe(STATUS.gates);
+    expect(record.get(run.number).labels).toContain("escalated");
+    expect(board.assignee(guestFilter)).toBe("maintainer-id");
+    expect(board.notes(guestFilter).filter((n) => n.startsWith("The gates need a person: Workflow lint, private terms failed on PR #42"))).toHaveLength(1);
+  });
+
+  it("closes the run and moves the card to Done when the Maintainer merges, once, and takes the next card", async () => {
+    const { f, board, record, run, pull, guestFilter, stayTotal } = await published(passing);
+    await reconcile(f);
+    board.drag(stayTotal, STATUS.ready);
+    record.pullsByBranch.set(`run/${run.number}-filter-rooms-by-number-of-guests`, { ...pull, state: "merged" });
+    record.freezeListing();
+    await reconcile(f);
+    await reconcile(f);
+    expect(board.status(guestFilter)).toBe(STATUS.done);
+    expect(record.get(run.number)).toMatchObject({ open: false, closedAs: "completed" });
+    expect(record.get(run.number).labels).toContain("outcome:merged");
+    expect(board.notes(guestFilter).filter((n) => n.includes("was merged"))).toHaveLength(1);
+    expect(board.status(stayTotal)).toBe(STATUS.build);
+  });
+
+  it("ends the run when its PR is closed without a merge", async () => {
+    const { f, board, record, run, pull, guestFilter } = await published(passing);
+    record.pullsByBranch.set(`run/${run.number}-filter-rooms-by-number-of-guests`, { ...pull, state: "closed" });
+    await reconcile(f);
+    expect(record.get(run.number).labels).toContain("outcome:failed");
+    expect(board.status(guestFilter)).toBe(STATUS.done);
+    expect(board.notes(guestFilter).at(-1)).toContain("PR #42 was closed without a merge.");
+  });
+
+  it("assigns the Maintainer a spec the spec gate sends to a person", async () => {
+    const { f, board, guestFilter } = await setup(unclear);
+    f.maintainer = "maintainer-id";
+    board.drag(guestFilter, STATUS.ready);
+    await reconcile(f, guestFilter);
+    expect(board.status(guestFilter)).toBe(STATUS.specReview);
+    expect(board.assignee(guestFilter)).toBe("maintainer-id");
+  });
+});

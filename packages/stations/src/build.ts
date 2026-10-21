@@ -5,7 +5,7 @@ import type { Jira } from "./jira.ts";
 import { readSpecComment, type Envelope } from "./render.ts";
 
 export type BuildRecord = Pick<GitHub, "issue" | "comments" | "comment" | "relabel">;
-export type BuildBoard = Pick<Jira, "cardUrl" | "move" | "comment" | "link">;
+export type BuildBoard = Pick<Jira, "cardUrl" | "move" | "comment" | "link" | "assign">;
 /** Pull requests go through the factory's App, so the gates run on them; GITHUB_TOKEN's events start none. */
 export type Pulls = Pick<GitHub, "pulls" | "openPull">;
 /** The two pushes the factory makes after the agent: the change on its branch, the evidence on `evidence`. */
@@ -85,7 +85,7 @@ export function judgeBuild(built: Built): { publish: false; reason: string } | {
  * token cannot push, and what it claims is not what goes on the PR. The factory's own evidence run is.
  */
 export async function publishBuild(
-  d: { record: BuildRecord; board: BuildBoard; pulls: Pulls; push: Push; runUrl: string; log?: (line: string) => void },
+  d: { record: BuildRecord; board: BuildBoard; pulls: Pulls; push: Push; runUrl: string; maintainer?: string; log?: (line: string) => void },
   { run, branch, sha256, built }: { run: RunIssue; branch: string; sha256: string; built: Built },
 ): Promise<void> {
   const verdict = judgeBuild(built);
@@ -94,6 +94,7 @@ export async function publishBuild(
     await d.record.comment(run.number, `The build needs a person: ${reason}\n\n[Workflow run](${d.runUrl})`);
     await d.record.relabel(run.number, { add: ["escalated"] });
     if (card) await d.board.comment(card, note(adf.text(`The build needs a person: ${reason} `), adf.link("Workflow run", d.runUrl)));
+    if (card && d.maintainer) await d.board.assign(card, d.maintainer);
     d.log?.(`run #${run.number}: escalated (${reason.split("\n")[0]})`);
   };
   if (!verdict.publish) return ask(verdict.reason);
