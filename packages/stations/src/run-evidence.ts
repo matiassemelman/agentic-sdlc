@@ -90,9 +90,10 @@ if (tests.length) {
     git(baseDir, "checkout", "--", ".");
     git(baseDir, "clean", "-fdq", "--", HOTEL);
     copyIn(e2es);
-    // On the base each criterion's test is meant to fail, and CI's retry ran every failure twice, each one waiting
-    // out its timeout. The timeout stays: a shorter one could turn a hollow test red here and let it through.
-    base = merge(baseUnits, e2eRun(baseDir, "base", ["desktop"], ["--retries=0"]).outcomes);
+    // On the base each criterion's test is meant to fail. CI's retry ran every failure twice, one at a time, each
+    // waiting out its timeout (212 s of run #19's 237 s): one try each, all at once. The test timeout stays: a
+    // shorter one could turn a slow hollow test red here and let it through.
+    base = merge(baseUnits, e2eRun(baseDir, "base", ["desktop"], ["--retries=0", "--fully-parallel", "--workers=5"]).outcomes);
   } finally {
     git(root, "worktree", "remove", "--force", baseDir);
   }
