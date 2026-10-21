@@ -104,6 +104,7 @@ p { text-wrap: pretty; }
 .currency__switch { display: inline-flex; background: var(--surface); }
 .currency__button { padding: 8px 16px; font-size: var(--step-small); color: var(--ink); background: none; border: 0; cursor: pointer; transition: background-color var(--t-hover) ease, color var(--t-hover) ease; }
 .currency__button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.sort { margin-bottom: 32px; }
 .currency__note { margin-top: 12px; font-size: var(--step-small); color: var(--muted); }
 .room { padding: 20px 24px; margin-inline: -24px; color: var(--muted); transition: color var(--t-hover) ease, background-color var(--t-ui) ease; }
 .room.is-active { color: var(--ink); background: var(--surface); }
