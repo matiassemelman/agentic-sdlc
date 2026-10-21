@@ -11,7 +11,8 @@ export default defineConfig({
   use: {
     baseURL: baseURL ?? "http://localhost:3100",
     trace: "retain-on-failure",
-    screenshot: "only-on-failure",
+    // EVIDENCE=1 keeps a screenshot of every test as it ends: the evidence a criterion holds (verify-hotel).
+    screenshot: process.env.EVIDENCE === "1" ? "on" : "only-on-failure",
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },

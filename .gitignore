@@ -10,3 +10,7 @@ test-results/
 .taste-skill/
 *.tsbuildinfo
 next-env.d.ts
+
+# Written by the build station and its evidence, published by the workflow, never committed
+.factory/
+evidence/
