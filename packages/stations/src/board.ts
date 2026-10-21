@@ -67,6 +67,7 @@ export type Action =
   | { kind: "gatesFailed"; run: Run; card: Observed; pull: RunPull }
   | { kind: "merged"; run: Run; card: Observed; pull: RunPull }
   | { kind: "restore"; card: Observed; to: string; reason: string }
+  | { kind: "queue"; card: Observed; behind: Observed }
   | { kind: "note"; card: Observed; reason: string };
 
 export type BoardState = {
@@ -82,12 +83,18 @@ export type BoardState = {
   hint?: string;
   /** The PRs of the runs at the gates or waiting for the Maintainer, by run number. */
   pulls?: Record<number, RunPull>;
+  /** Every card of each epic a person started by moving one of its cards to Ready, wherever each card is now. */
+  children?: Observed[];
 };
 
 export const stationOf = (labels: string[]) => labels.find((l) => l.startsWith("station:"));
 const lastMove = (card: Observed) => card.moves.at(-1);
 /** When the card last entered Ready; a card created there counts from its creation. */
 const readySince = (card: Observed) => card.moves.filter((m) => m.to === STATUS.ready).at(-1)?.at ?? card.created;
+const ticketOf = (card: Card) => card.labels.find((l) => l.startsWith("ticket:"))?.slice("ticket:".length);
+/** A person's last move of the card to Ready: for a card of an epic, the drag that started the epic. */
+export const startedBy = (card: Observed, factory: string) => card.moves.filter((m) => m.to === STATUS.ready && m.by !== factory).at(-1);
+const keyNumber = (key: string) => Number(key.slice(key.lastIndexOf("-") + 1));
 
 /**
  * What the factory does next, from what the board and GitHub show now. It compares; it never trusts
@@ -136,6 +143,24 @@ export function decide(state: BoardState): Action[] {
     }
   }
 
+  // One drag queues the epic: the epic's cards still in Backlog follow the card a person moved to Ready, in the
+  // epic's order (their keys). It reads the history, not the event, so a pass that failed halfway is finished by the
+  // next one. A card moved since that drag, such as one a person took back out of Ready, stays where it is.
+  const queued = new Set<string>();
+  for (const card of state.cards) {
+    const ticketId = ticketOf(card);
+    const drag = startedBy(card, state.factory);
+    if (!card.parent || !drag || !ticketId || !state.ticketIds.includes(ticketId)) continue;
+    const rest = (state.children ?? [])
+      .filter((c) => c.parent === card.parent && c.key !== card.key && !queued.has(c.key) && c.status === STATUS.backlog)
+      .filter((c) => c.moves.every((m) => m.at < drag.at) && state.ticketIds.includes(ticketOf(c) ?? ""))
+      .sort((a, b) => keyNumber(a.key) - keyNumber(b.key));
+    for (const sibling of rest) {
+      queued.add(sibling.key);
+      actions.push({ kind: "queue", card: sibling, behind: card });
+    }
+  }
+
   const loose = state.cards.filter((c) => !withRun.has(c.key));
   // A card the factory itself put at a station has a run, even when GitHub's list (which lags behind
   // writes) does not show it yet: it stays where it is and keeps the factory busy.
@@ -147,7 +172,7 @@ export function decide(state: BoardState): Action[] {
   const ready = loose.filter((c) => c.status === STATUS.ready).sort((a, b) => readySince(a).localeCompare(readySince(b)));
   const prepared: { card: Observed; ticketId: string }[] = [];
   for (const card of ready) {
-    const ticketId = card.labels.find((l) => l.startsWith("ticket:"))?.slice("ticket:".length);
+    const ticketId = ticketOf(card);
     if (ticketId && state.ticketIds.includes(ticketId)) prepared.push({ card, ticketId });
     else
       actions.push({

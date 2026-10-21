@@ -31,6 +31,18 @@ const state = (partial: Partial<BoardState>): BoardState => ({
 });
 
 describe("decide", () => {
+  it("queues an epic's cards in Backlog behind the one a person moved to Ready, in the epic's order", () => {
+    const dragged = { ...card("SD-2", STATUS.ready, [move("11:00", STATUS.backlog, STATUS.ready, "po-id")]), parent: "SD-1" };
+    const later = { ...card("SD-4", STATUS.backlog), parent: "SD-1" };
+    const next = { ...card("SD-3", STATUS.backlog), parent: "SD-1" };
+    const elsewhere = { ...card("SD-6", STATUS.backlog), parent: "SD-5" };
+    const actions = decide(state({ cards: [dragged], children: [dragged, later, next, elsewhere] }));
+    expect(actions.filter((a) => a.kind === "queue").map((a) => [a.card.key, a.kind === "queue" && a.behind.key])).toEqual([
+      ["SD-3", "SD-2"],
+      ["SD-4", "SD-2"],
+    ]);
+  });
+
   it("takes the card that has waited longest in Ready", () => {
     const later = card("SD-1", STATUS.ready, [move("11:30", STATUS.backlog, STATUS.ready)]);
     const earlier = card("SD-2", STATUS.ready, [move("11:00", STATUS.backlog, STATUS.ready)]);
