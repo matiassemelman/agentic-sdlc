@@ -45,15 +45,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Workflow lint (actionlint, pinned and checksum-verified)
-        env:
-          VERSION: 1.7.12
-          SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
-        run: |
-          curl -sSfL -o "$RUNNER_TEMP/actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/actionlint_${VERSION}_linux_amd64.tar.gz"
-          echo "${SHA256}  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
-          tar xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
-          "$RUNNER_TEMP/actionlint" -color
+      - name: Workflow lint (actionlint, pinned and checksum-verified, as pnpm lint:workflows)
+        run: scripts/actionlint.sh
       - name: Private terms (files, and the messages of the new commits)
         env:
           PRIVATE_TERMS: ${{ vars.PRIVATE_TERMS }}

@@ -59,6 +59,9 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ github.token }}
+          # Board starts this workflow with GITHUB_TOKEN, so the actor is github-actions[bot]; the action refuses
+          # bots unless listed. Only this repository's workflows act as that bot, and only main runs this job.
+          allowed_bots: github-actions[bot]
           prompt: |
             Implement the approved spec of run #${{ inputs.run }}. Read .claude/skills/implement-ticket/SKILL.md and follow it.
             The spec is in .factory/envelope.json. You are done when every gate passes and
