@@ -9,7 +9,7 @@
 ## Active Stage
 **STAGE-001-004:** Build with self-verification, and the spec gate
 **File:** `docs/stages/stage-001-004-build.md`
-**Phase:** Works live end to end (KAN-3 in production); closing: the code review's findings, then the docs
+**Phase:** Works live end to end (KAN-3 in production); the code review's fixes wait in PR #32
 
 ## Context
 - **STAGE-001-003 done on 2026-10-20.** The board works live: webhook → relay → `Board`, the spec on the card, approval bound to the hash, the queue, wrong drags put back, rejection, failures that say why. Fixed on the way: the webhook's URL, the Ready and Done columns, the listing lag (GitHub and Jira), the SDK's parser, the spec's limits. Details in its stage file.
@@ -28,8 +28,13 @@
 ## Next Action
 Lookups (watch a run, start one, retry a build, Jira ids, the App check, secrets): `docs/runbook.md`.
 
-1. **The live run:** KAN-1 to Ready (drag it, or the MCP's `In Review` transition, id 31). Expect about 7 minutes to Merge: spec ~1, build ~5 (run #27: 285 s), gates ~1. The card is assigned to the Maintainer; he approves and merges PR; the card goes to Done and production changes in under a minute. Watch with `scripts/watch-run.sh board.yml`, then `build.yml`.
-2. **Close STAGE-001-004:** apply the `/code-review` findings of 2026-10-21 (every PR since #17); check its "Done when" (all live except a spec with too many assumptions waiting on the card, which only unit tests cover); then the docs.
-3. **Then the epic, stage by stage, until it is done:** 005 independent gates (CI runs `run-evidence.ts` again), 006 intake from a design session, 007 bug injection, 008 model gates, 009 self-healing, 010 ledger, 011 reset demo, 012 graph, 013 tickets a guest writes. Each stage starts with its design, and Matias decides. Self-healing first: every retry on 2026-10-21 was by hand (KAN-3 took four builds, KAN-4 three).
-4. **Known gap:** closing a PR wakes no `Board` run; the run ends on the next event (a gate finishing, a push to `main`, a card moved).
-5. **Deferred:** the factory doctor and the Jira admin token (retro items 1 and 2); Haiku again, told to run every command in the foreground.
+1. **Merge PR #32** (the code review's fixes, every check green, not yet run live): the E2E gate before Merge, the agent's allowlist (`WRITABLE`), notices that never stop a run, markers last. `main` without it is the state the rehearsal (run #27) proved.
+2. **A mini test from zero, watched end to end:** a small feature, a short design session (`/grill-with-docs`), its tickets, the build, the deploy; GitHub's pipelines, the cards moving in Jira, the page changing. It is also the first live run of PR #32. Settle in the session:
+   - **How the tickets get in.** Intake from a design session (STAGE-001-006) is not built: the factory takes only prepared tickets, a `tickets/<id>.md` like `tickets/usd-prices.md` and its card labelled `ticket:<id>` (Seed creates it). Quickest: the session writes the ticket file, a PR merges it, `seed.yml` adds the card to Backlog, then the card moves to Ready.
+   - **i18n, if that is the feature.** `AGENTS.md` says the text a visitor reads is in English, so that rule changes first, by the Maintainer. Routing by locale needs `middleware.ts` or `next.config.ts`, which the agent may not write: a language switch in the page, like the currency switch, fits `app/`, `components/` and `lib/`.
+   - Expect about 9 minutes from Ready to Merge now that Merge waits for the E2E run (run #27 without it: 285 s of build).
+3. **A 10-minute narrative of how the factory was built:** components, flow, and above all measurement, verification, optimization and integrations. First a `/grill-with-docs` session to agree on its intent, then the past sessions (episodic memory), the PRs (#1 to #32), the stage files and this file as sources.
+4. **The live run:** KAN-1 (guest-filter) is kept for it; KAN-2 (stay-total) is spare.
+5. **Then the epic:** 005 to 013, self-healing first (every retry on 2026-10-21 was by hand). Code review findings 6, 7 and 9 are in the stage file.
+6. **Known gap:** closing a PR wakes no `Board` run; the run ends on the next event.
+7. **Deferred:** the factory doctor and the Jira admin token; Haiku again, told to run every command in the foreground.
