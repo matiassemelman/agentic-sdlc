@@ -1,4 +1,56 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+const prices = (page: Page) => page.getByTestId("room-price");
+
+test("AC-3: prices start in euros", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Euros" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "US dollars" })).toHaveAttribute("aria-pressed", "false");
+  await expect(prices(page)).toHaveText(["€210", "€185", "€260", "€120"]);
+});
+
+test("AC-4: the US dollars button shows dollar prices", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "US dollars" }).click();
+  await expect(prices(page)).toHaveText(["$236", "$208", "$292", "$135"]);
+  for (const room of await page.getByTestId("room").all()) await expect(room.locator(".room__price")).toContainText("a night");
+  await expect(page.getByRole("button", { name: "US dollars" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("AC-5: the Euros button brings euros back", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "US dollars" }).click();
+  await page.getByRole("button", { name: "Euros" }).click();
+  await expect(prices(page).first()).toHaveText("€210");
+  await expect(page.getByRole("button", { name: "Euros" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("AC-6: the note names the rate", async ({ page }) => {
+  await page.goto("/");
+  await expect(
+    page.getByText("Dollar prices are approximate, converted at 1 EUR = 1.1225 USD, the European Central Bank reference rate of 19 October 2026."),
+  ).toBeVisible();
+});
+
+test("AC-7: no sideways scroll in dollars, and both buttons show a focus ring", async ({ page }, testInfo) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "US dollars" }).click();
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+  test.skip(testInfo.project.name !== "desktop", "keyboard focus is a desktop concern");
+  const euros = page.getByRole("button", { name: "Euros" });
+  const dollars = page.getByRole("button", { name: "US dollars" });
+  await euros.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect(euros).toBeFocused();
+  await expect(euros).toHaveCSS("outline-style", "solid");
+  await page.keyboard.press("Tab");
+  await expect(dollars).toBeFocused();
+  await expect(dollars).toHaveCSS("outline-style", "solid");
+});
 
 test("shows the four rooms with their nightly price and capacity", async ({ page }) => {
   await page.goto("/");
