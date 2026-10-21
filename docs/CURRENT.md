@@ -33,7 +33,10 @@ Lookups (watch a run, start one, retry a build, Jira ids, the App check, secrets
    - **How the tickets get in.** Intake from a design session (STAGE-001-006) is not built: the factory takes only prepared tickets, a `tickets/<id>.md` like `tickets/usd-prices.md` and its card labelled `ticket:<id>` (Seed creates it). Quickest: the session writes the ticket file, a PR merges it, `seed.yml` adds the card to Backlog, then the card moves to Ready.
    - **i18n, if that is the feature.** `AGENTS.md` says the text a visitor reads is in English, so that rule changes first, by the Maintainer. Routing by locale needs `middleware.ts` or `next.config.ts`, which the agent may not write: a language switch in the page, like the currency switch, fits `app/`, `components/` and `lib/`.
    - Expect about 9 minutes from Ready to Merge now that Merge waits for the E2E run (run #27 without it: 285 s of build).
-3. **A 10-minute narrative of how the factory was built:** components, flow, and above all measurement, verification, optimization and integrations. First a `/grill-with-docs` session to agree on its intent, then the past sessions (episodic memory), the PRs (#1 to #32), the stage files and this file as sources.
+3. **A 10-minute narrative of how the factory was built:** the whole system (the hotel, the factory's relay and stations, Jira with its two accounts, GitHub, Vercel, Anthropic), its flow, and above all measurement, verification, optimization and integrations. In this order:
+   1. Read the past sessions thoroughly (episodic memory), the PRs (#1 to #33) and the stage files, for the moments that show the most judgement and growth: decisions changed by evidence, things cut on purpose, failures turned into rules, measured choices.
+   2. A `/grill-with-docs` session with Matias to agree on what the narrative stresses.
+   3. Then the narrative.
 4. **The live run:** KAN-1 (guest-filter) is kept for it; KAN-2 (stay-total) is spare.
 5. **Then the epic:** 005 to 013, self-healing first (every retry on 2026-10-21 was by hand). Code review findings 6, 7 and 9 are in the stage file.
 6. **Known gap:** closing a PR wakes no `Board` run; the run ends on the next event.
