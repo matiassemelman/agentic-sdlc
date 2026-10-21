@@ -1,10 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { STATUS } from "./board.ts";
-import { branchFor, changedFiles, gitFailure, judgeBuild, prepareBuild, publishBuild, type Built } from "./build.ts";
+import { branchFor, changedFiles, gitFailure, judgeBuild, PROTECTED, prepareBuild, publishBuild, type Built } from "./build.ts";
 import { reconcile } from "./factory.ts";
 import { FakeBoard, FakeRecord, stamp } from "./fakes.ts";
 import { exampleSpec, unclearSpec } from "./fixtures.ts";
@@ -111,7 +111,8 @@ describe("the build station", () => {
     expect(opened).toEqual([]);
     expect(record.issues[0].labels).toEqual(expect.arrayContaining(["station:build", "escalated"]));
     expect(board.status(card)).toBe(STATUS.build);
-    expect(board.notes(card).at(-1)).toContain("The build needs a person: the build changed files outside apps/hotel/");
+    expect(board.notes(card).at(-1)).toContain("The build needs a person: the build changed files only the factory changes (outside apps/hotel/");
+    expect(board.notes(card).at(-1)).toContain("package.json");
   });
 });
 
@@ -164,5 +165,33 @@ describe("a failed push, as a person reads it", () => {
     expect(board.notes(card).at(-1)).toContain("publishing the change failed");
     expect(board.notes(card).at(-1)).toContain("without `workflows` permission");
     expect(board.assignee(card)).toBe("maintainer-id");
+  });
+});
+
+describe("what the build agent may change, and run", () => {
+  const read = (path: string) => readFileSync(join(root, path), "utf8");
+
+  it("refuses a change to the agent's own rules or to the harness that judges it", () => {
+    for (const file of ["apps/hotel/AGENTS.md", "apps/hotel/playwright.config.ts", "apps/hotel/vitest.config.ts"]) {
+      const verdict = judgeBuild({ finished: true, changed: ["apps/hotel/lib/rooms.ts", file], evidence: green });
+      expect(verdict).toMatchObject({ publish: false });
+      expect(verdict.reason).toContain(file);
+    }
+  });
+
+  it("tells the agent every file it may not change, where it reads its rules", () => {
+    for (const file of PROTECTED) {
+      expect(read("AGENTS.md")).toContain(file);
+      expect(read(".claude/skills/implement-ticket/SKILL.md")).toContain(file);
+    }
+  });
+
+  it("lets the agent run every gate AGENTS.md tells it to run", () => {
+    // Run #27 (2026-10-21): the agent was told to run the E2E gate and its tools refused it, so it stopped.
+    const gates = [...read("AGENTS.md").matchAll(/^\| [^|]+ \| `([^`]+)` \|$/gm)].map((m) => m[1]);
+    const allowed = [...(/--allowedTools "([^"]+)"/.exec(read(".github/workflows/build.yml"))?.[1] ?? "").matchAll(/Bash\(([^)]+)\)/g)].map((m) => m[1]);
+    const permits = (command: string) => allowed.some((p) => (p.endsWith(":*") ? command.startsWith(p.slice(0, -2)) : command === p));
+    expect(gates.length).toBeGreaterThanOrEqual(6);
+    expect(gates.filter((g) => !permits(g))).toEqual([]);
   });
 });
