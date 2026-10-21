@@ -1,6 +1,6 @@
 # Current Work Status
 
-**Updated:** 2026-10-21
+**Updated:** 2026-10-21 (evening)
 
 ## Active Epic
 **EPIC-001:** Factory v0, from a design session to production (reordered 2026-10-20: verification first, people on the loop)
@@ -9,17 +9,17 @@
 ## Active Stage
 **STAGE-001-006 (first slice):** Epics on the board, one drag queues them
 **File:** `docs/stages/stage-001-006-epics.md`
-**Phase:** PR 1 (Seed files epics) open; then the live Seed run, PR 2 (Board queues the epic), the mini test
-**Before:** STAGE-001-004 works live end to end (KAN-3 in production); its code review's fixes merged in PR #32 on 2026-10-21, not yet run live.
+**Phase:** Built and merged (PR #35 Seed files epics, PR #36 Board queues the epic); Seed ran live and filed the epic. **The queue has not run live yet.**
+**Before:** STAGE-001-004 works live end to end (KAN-3 in production); its code review's fixes (PR #32, 2026-10-21) have not run live either.
 
 ## Context
 - **STAGE-001-003 done on 2026-10-20.** The board works live: webhook → relay → `Board`, the spec on the card, approval bound to the hash, the queue, wrong drags put back, rejection, failures that say why. Fixed on the way: the webhook's URL, the Ready and Done columns, the listing lag (GitHub and Jira), the SDK's parser, the spec's limits. Details in its stage file.
 - **GitHub App `agentic-sdlc-factory` (id 5404226):** `FACTORY_APP_ID` and `FACTORY_APP_PRIVATE_KEY` are in the `factory` environment, and the key is in `~/.config/agentic-sdlc/factory-app.private-key.pem` (mode 600). Installed on the repo with contents, issues and pull requests write (checked with a JWT, `docs/runbook.md`).
 - **Design changed: people on the loop** ([ADR 0001](adr/0001-people-on-the-loop.md)). The factory takes a ticket from Ready to a verified PR by itself. A person decides when it escalates on the card and at the merge. Tickets come from a design session (`/grill-with-docs`), STAGE-001-006. Epic and `design.md` rewritten.
-- **Board now:** 8 columns (Triage and Acceptance removed on 2026-10-21). All four cards in Done:
-  - KAN-3 (usd-prices): run #19, PR #26 merged by the Maintainer; production shows the switch.
-  - KAN-4 (guest-filter): run #27, the rehearsal of the live run. PR #29 reached Merge and was closed unmerged on purpose, so `main` has no guest filter.
-  - KAN-1 (guest-filter) is kept for the live run; KAN-2 (stay-total) is spare.
+- **Board now:** 8 columns (Triage and Acceptance removed on 2026-10-21).
+  - **Backlog, set up for the interview demo:** KAN-5 is the epic `compare-rooms`, with KAN-6 (room-order) and KAN-7 (price-per-guest) under it. The demo: Matias drags KAN-6 to Ready and KAN-7 follows. Not run yet.
+  - Also in Backlog, from the same Seed run: KAN-8 (guest-filter) and KAN-9 (stay-total). KAN-10, a usd-prices duplicate, was deleted.
+  - In Done: KAN-3 (usd-prices, run #19, PR #26 merged; production shows the switch), KAN-4 (guest-filter rehearsal, PR #29 closed unmerged, so `main` has no guest filter), KAN-1 and KAN-2.
 - **The build's executor is Sonnet 5.5 at high effort** (`BUILD_MODEL`, `BUILD_EFFORT` in the `factory` environment). Haiku 5.5 was tried on KAN-4: 447 s when it finished, and once it ran out of turns polling a background task. Sonnet on the same ticket: 147 s. Numbers in the stage file.
 - **Limits:** 20 runs a day (`MAX_RUNS_PER_DAY`); the Anthropic credit was topped up on 2026-10-21.
 - **Relay:** https://agentic-sdlc-factory.vercel.app (Vercel project `agentic-sdlc-factory`). The webhook secret lives only in `~/.config/agentic-sdlc/jira-webhook-secret` (mode 600) and in Vercel.
@@ -27,18 +27,13 @@
 - **The private terms live in the `PRIVATE_TERMS` repository variable.** The `repo-checks` job reads them; the file never names them.
 
 ## Next Action
-Lookups (watch a run, start one, retry a build, Jira ids, the App check, secrets): `docs/runbook.md`.
+Lookups (watch a run or a PR, read the board, start a run, retry a build, show a guard red, Jira ids, secrets): `docs/runbook.md`.
 
-1. **The mini test, decided in a design session on 2026-10-21** (`docs/stages/stage-001-006-epics.md`): the epic `compare-rooms` (`room-order`, then `price-per-guest`); Matias drags the first card, and the factory queues the rest. Merge PR 1, run Seed, check the epic in Jira; PR 2; then the drag.
-2. **(Settled in that session; kept for the record.) A mini test from zero, watched end to end:** a small feature, a short design session (`/grill-with-docs`), its tickets, the build, the deploy; GitHub's pipelines, the cards moving in Jira, the page changing. It is also the first live run of PR #32. Settle in the session:
-   - **How the tickets get in.** Intake from a design session (STAGE-001-006) is not built: the factory takes only prepared tickets, a `tickets/<id>.md` like `tickets/usd-prices.md` and its card labelled `ticket:<id>` (Seed creates it). Quickest: the session writes the ticket file, a PR merges it, `seed.yml` adds the card to Backlog, then the card moves to Ready.
-   - **i18n, if that is the feature.** `AGENTS.md` says the text a visitor reads is in English, so that rule changes first, by the Maintainer. Routing by locale needs `middleware.ts` or `next.config.ts`, which the agent may not write: a language switch in the page, like the currency switch, fits `app/`, `components/` and `lib/`.
-   - Expect about 9 minutes from Ready to Merge now that Merge waits for the E2E run (run #27 without it: 285 s of build).
-3. **A 10-minute narrative of how the factory was built:** the whole system (the hotel, the factory's relay and stations, Jira with its two accounts, GitHub, Vercel, Anthropic), its flow, and above all measurement, verification, optimization and integrations. In this order:
-   1. Read the past sessions thoroughly (episodic memory), the PRs (#1 to #33) and the stage files, for the moments that show the most judgement and growth: decisions changed by evidence, things cut on purpose, failures turned into rules, measured choices.
-   2. A `/grill-with-docs` session with Matias to agree on what the narrative stresses.
-   3. Then the narrative.
-4. **The live run:** KAN-1 (guest-filter) is kept for it; KAN-2 (stay-total) is spare.
-5. **Then the epic:** 005 to 013, self-healing first (every retry on 2026-10-21 was by hand). Code review findings 6, 7 and 9 are in the stage file.
-6. **Known gap:** closing a PR wakes no `Board` run; the run ends on the next event.
-7. **Deferred:** the factory doctor and the Jira admin token; Haiku again, told to run every command in the foreground.
+1. **Next session: a visual of the whole system, from zero, for Matias to learn and explain it.** Technical and plain, no pitch: every part and where it runs (Jira and its two accounts, the relay, GitHub Actions and the stations, the GitHub App, the `factory` environment, Anthropic, Vercel, the hotel), one run step by step (who triggers whom, where state lives), and how it was built stage by stage, with the decisions and failures that shaped it. Start with a short `/grill-with-docs` on format and depth; build it from the code and the docs, not from memory.
+2. **Then rehearse the exact demo once, and record it** (plan B). Neither the queue (PR #36) nor PR #32's fixes have run live. KAN-5/6/7 are kept for the talk: rehearse with other cards (e.g. KAN-8 and KAN-9 under a rehearsal epic), closing their PRs unmerged as with KAN-4. The talk deck made on 2026-10-21 was discarded as too much of a pitch; its facts can be reused.
+3. **Seed files shipped tickets again.** It files every prepared ticket with no open card, so a card in Done (shipped) gets a duplicate in Backlog (KAN-10 on 2026-10-21). Before the interview, file only tickets the board has never had, or mark shipped tickets.
+4. **PR #37 (Ubicloud runners) is open, not merged.** On 2026-10-21 GitHub's runners and its job notices stalled for about 15 minutes. Ubicloud did not avoid it: its jobs waited 239 and 363 s for a runner (GitHub notified it late) and ran 62 s against GitHub's 29 s. Measure again on a calm day before deciding; the Ubicloud account costs nothing unused.
+5. **Retro of 2026-10-21, still to do:** a read-only Jira token for `scripts/board.sh` (Matias creates it; steps in the runbook); the English rule and the agent's writable folders restated in 4 files (`AGENTS.md`, `write-spec`, `implement-ticket`, `verify-hotel`): point the skills at `AGENTS.md` instead, after the demo, since the agents read them mid-run.
+6. **Then the epic:** 005 to 013, self-healing first. Code review findings 6, 7 and 9 are in STAGE-001-004's file.
+7. **Known gap:** closing a PR wakes no `Board` run; the run ends on the next event.
+8. **Deferred:** the factory doctor and the Jira admin token; Haiku again, told to run every command in the foreground.

@@ -6,22 +6,34 @@ import { FakeBoard, FakeRecord } from "./fakes.ts";
 import { exampleSpec } from "./fixtures.ts";
 import { renderSpecComment } from "./render.ts";
 import { adoptRun, checkBoard, seedPrepared } from "./seed.ts";
+import { listEpics, listTicketIds } from "./tickets.ts";
 
 const root = resolve(import.meta.dirname, "../../..");
 
 describe("seeding the board", () => {
   it("adds each prepared ticket to Backlog once, an epic's tickets under the epic's card and in its order", async () => {
     const board = new FakeBoard();
-    expect(await seedPrepared({ root, board, project: "SD" })).toEqual(["SD-1", "SD-2", "SD-3", "SD-4", "SD-5", "SD-6"]);
+    // Derived from tickets/, so a design session that adds tickets or epics breaks no test.
+    const epics = listEpics(root);
+    const inEpics = new Set(epics.flatMap((e) => e.tickets));
+    const expected = [
+      ...epics.flatMap((e) => [`epic:${e.id}`, ...e.tickets.map((id) => `ticket:${id}`)]),
+      ...listTicketIds(root)
+        .filter((id) => !inEpics.has(id))
+        .map((id) => `ticket:${id}`),
+    ];
+    expect(await seedPrepared({ root, board, project: "SD" })).toHaveLength(expected.length);
     expect(await seedPrepared({ root, board, project: "SD" })).toEqual([]);
-    expect([...board.cards.values()].map((s) => [s.card.key, s.epic ?? false, s.card.summary, s.card.status, s.card.labels, s.card.parent])).toEqual([
-      ["SD-1", true, "Make the rooms easier to compare", STATUS.backlog, ["epic:compare-rooms"], undefined],
-      ["SD-2", false, "Sort the rooms by price", STATUS.backlog, ["ticket:room-order"], "SD-1"],
-      ["SD-3", false, "Price per guest for each room", STATUS.backlog, ["ticket:price-per-guest"], "SD-1"],
-      ["SD-4", false, "Filter rooms by number of guests", STATUS.backlog, ["ticket:guest-filter"], undefined],
-      ["SD-5", false, "Total price of a stay, with the tourist tax", STATUS.backlog, ["ticket:stay-total"], undefined],
-      ["SD-6", false, "Prices in euros or US dollars", STATUS.backlog, ["ticket:usd-prices"], undefined],
-    ]);
+
+    const cards = [...board.cards.values()];
+    expect(cards.map((s) => s.card.labels)).toEqual(expected.map((label) => [label]));
+    expect(cards.every((s) => s.card.status === STATUS.backlog)).toBe(true);
+    for (const epic of epics) {
+      const card = board.keyFor(`epic:${epic.id}`);
+      expect(board.cards.get(card)!.epic).toBe(true);
+      expect(epic.tickets.map((id) => board.cards.get(board.keyFor(`ticket:${id}`))!.card.parent)).toEqual(epic.tickets.map(() => card));
+    }
+    expect(cards.filter((s) => !s.epic && !inEpics.has(s.card.labels[0].slice("ticket:".length))).every((s) => s.card.parent === undefined)).toBe(true);
   });
 
   it("files an epic's missing tickets under a new epic card, and leaves the ones still open where they are", async () => {
