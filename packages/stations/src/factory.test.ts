@@ -151,13 +151,13 @@ describe("the factory on the board", () => {
     board.drag(stayTotal, STATUS.gates);
     board.drag(guestFilter, STATUS.ready);
     await reconcile(f);
-    board.drag(guestFilter, STATUS.acceptance, "po-id", "Ana");
+    board.drag(guestFilter, STATUS.gates, "po-id", "Ana");
     await reconcile(f);
 
     expect(board.status(stayTotal)).toBe(STATUS.backlog);
     expect(board.notes(stayTotal).at(-1)).toContain("No run is working on this card");
     expect(board.status(guestFilter)).toBe(STATUS.specReview);
-    expect(board.notes(guestFilter).at(-1)).toMatch(/^Ana moved this card to Acceptance\. This card belongs in Spec review/);
+    expect(board.notes(guestFilter).at(-1)).toMatch(/^Ana moved this card to Gates\. This card belongs in Spec review/);
     expect(record.issues[0].labels).toContain("station:spec-approval");
   });
 
